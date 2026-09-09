@@ -24,6 +24,7 @@ This directory is standalone: nothing here requires `src/` or the card game.
 | Tactical playouts + MC-RAVE | Done (Phase 1) |
 | Regional matrix (`go-regions.js`) | Built and measured — **does not help; see below** |
 | Eye layer (`go-eyes.js`) | Done — Benson unconditional life, graded eye reading, vital points |
+| Ladder guard (`go-ladder.js`) | Done — exact ladder reader consulted by the priors; **-57% ladder blunders, 63% vs unguarded** |
 | Scoring for human play (`go-score.js`) | Done — settle-then-score, audited against GNU Go |
 | First-play urgency | Done — unvisited edges valued at the parent, not at zero |
 | Pass gating (`passReady`) | Done — pass stays out of the tree until the board is developed |
@@ -221,6 +222,75 @@ and **`attack` just 2** (over 40 later games at 2000 sims the same imbalance hel
 groups at two liberties or fewer, which a stronger opponent rarely offers. This is untuned rather than
 diagnosed — it may be correct deference, or the threshold may simply be wrong.
 
+## The ladder guard
+
+A ladder was this engine's most expensive blind spot, and it is the one tactic a rollout leaf is
+structurally unable to see. In a random continuation the attacker does not reliably keep chasing, so a
+doomed group survives most playouts and the leaf reports that running was fine. Meanwhile the priors
+pay the engine to run: `Pat.score` alone gives `1.9 * log1p(rescue)`, and the `defend` and `live`
+frames add more on top. The result is a chain lost one stone at a time, in a sequence that was already
+decided at the first move.
+
+`go-ladder.js` reads the sequence out instead of estimating it. A ladder is forced, so it can be
+searched to a terminal answer: the escaper may extend or capture, the attacker may atari, and nothing
+else is considered — which is exactly what makes an exact tactical search cheap enough to call from
+inside the priors. Two details matter for correctness. The escaper is allowed to capture an adjacent
+attacking chain in atari, which is what a **ladder breaker** is; a reader without that branch will
+confidently tell you a group dies when in fact it takes the chasing stones off the board first. And a
+read that exhausts its node budget answers "escapes", because a guard must never invent a capture it
+did not actually finish seeing.
+
+### Where it is consulted, and where it is not
+
+The guard runs in `policyPriors`, on two questions: *would the group I am about to create get chased
+down* (penalty 3.4) and *is the atari I am about to play a ladder I actually win* (bonus 1.3). Both are
+in the same log-odds units as the rest of the priors, so the guard argues with the other features
+rather than overriding them.
+
+It is gated hard. Being short of liberties is not enough on its own — a lone stone on the 1-1 point is
+strictly capturable in a first-line ladder, and an early version of this gate duly penalised every
+corner of an empty board. Correct, and useless: that is the line prior's job. What makes a ladder worth
+avoiding is an enemy stone already touching, so the read only runs on a contact move or on a rescue of
+a group that is already in atari. In a typical midgame position the gate opens on about 5 candidates
+out of 69, and the layer costs **9%** of time per move.
+
+### Measured
+
+40 games, colours alternating, 600 playouts a side. `tools/style-arena.cjs` counts a *ladder blunder*
+every time a side plays a stone into a group the opponent can then chase down and capture outright —
+the direct evidence, since a win rate alone cannot tell "stopped losing groups in ladders" from "got
+luckier".
+
+| | Guard on | Guard off |
+| --- | --- | --- |
+| Result | **25-15 (63% ± 8)** | 15-25 |
+| Ladder blunders per game | **3.73** | 8.68 |
+| Resulting liberties per move | 3.679 | 3.473 |
+
+Blunders more than halve, and the engine plays measurably thicker as a side effect. On the specific
+position the layer was built for — a black stone in atari on the A file with a white wall on B — the
+doomed escape at A4 falls from rank 21 of 78 to rank 74 under the `defend` frame.
+
+### Reading ladders inside the rollouts is a negative result
+
+The obvious next step is to fix the leaf as well as the prior: stop the rollout from answering atari by
+extending a group that is already lost, so a doomed escape stops *evaluating* as survivable. It is
+implemented, it works, and it is off by default, because it does not pay:
+
+| 40 games | Equal playouts (600 v 600) | Equal time (383 v 600) |
+| --- | --- | --- |
+| Rollout guard vs priors guard only | 26-14 (65% ± 8) | **16-24 (40% ± 8)** |
+
+The check costs 89% of playout throughput — a ladder read per atari answer, in the hottest loop in the
+engine. At equal playouts that buys a win; at equal time it buys 383 playouts instead of 600, and the
+lost search is worth more than the tactical accuracy. It also barely moves the blunder count (5.75 vs
+4.90), which says the priors were already catching what mattered. Equal playouts is the flattering
+question and equal time is the real one, which is why `tools/style-arena.cjs` takes `--a-playouts` and
+`--b-playouts` separately.
+
+Turn it on with `--rollout-ladders on` if you ever run the engine at a fixed playout count rather than
+a fixed clock.
+
 ## Play-style personalities
 
 The engine can wear a personality fitted from a corpus of human 9x9 game records: `go-records/` holds
@@ -380,6 +450,7 @@ npm test                      # rules, scoring, cognitive and eye-layer tests
 npm run go:baseline:random    # random play vs GNU Go level 1
 npm run go:baseline:flat      # flat Monte Carlo vs GNU Go level 1
 npm run go:puct:level1        # the current engine vs GNU Go level 1
+npm run go:ladder             # the ladder guard, measured against itself with the guard off
 npm run go:style              # fit the play-style personalities from go-records/
 npm run go:style:arena        # every personality vs the stock engine
 ```
@@ -395,6 +466,7 @@ the settings it ran with, so no two runs can be confused for one another.
 ```bash
 node nc-go/engine.cjs --playouts 6000        # point your GUI at this command
 node nc-go/engine.cjs --personality brawler  # ...wearing a fitted play style
+node nc-go/engine.cjs --ladders off          # ...with the ladder guard disabled
 ```
 
 Three GTP extensions come with it: `nc-personality [id]` reads or sets the current personality (`none`
@@ -543,6 +615,9 @@ rather than resetting, so a plan that stops paying off is demoted instead of ins
 chess design. The governing plan then re-weights the move features: `attack` rewards moves that press a short
 of liberties enemy group, `defend` rewards rescuing one's own, `expand` rewards the third and fourth lines
 away from existing stones.
+
+`go-ladder.js` reads ladders exactly and lends the priors an opinion about them; see **The ladder
+guard** above for why that has to live in the priors rather than in the leaf.
 
 `go-mcts.js` is the same PUCT loop as `src/cognitive-mcts.js`, with one architectural change: the leaf is a
 light playout scored to a Tromp-Taylor terminal rather than `tanh(evaluate/600)`. Positional superko is

@@ -21,6 +21,8 @@ const options={
   eyeWeight:Number(arg("eye-weight",1.1)),
   cPuct:Number(arg("cpuct",1.2)),
   raveBias:Number(arg("rave",.015)),
+  ladders:arg("ladders","on")!=="off",
+  rolloutLadders:arg("rollout-ladders","off")==="on",
   personality:arg("personality",null),
   styleWeight:Number(arg("style-weight",1)),
   bookWeight:Number(arg("book-weight",1)),

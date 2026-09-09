@@ -37,10 +37,10 @@
 
   // Cognitive-PUCT carries a mind between moves, so plan support accumulates across the match.
   function puctPolicy(state,random,{playouts=2000,mind=null,seed=1,cPuct=1.2,expandThreshold=6,raveBias=.015,fpuReduction=.2,survey=null,regionStrength=.8,fastPlayouts=true,eyeMode="root",eyeWeight=1.1,
-  personality=null,styleWeight=1,bookWeight=1,playoutWeight=1}={}){
+  personality=null,styleWeight=1,bookWeight=1,playoutWeight=1,ladders=true,rolloutLadders=false}={}){
     const person=People.resolve(personality,{styleWeight,bookWeight,playoutWeight});
     const carried=mind||G.createMind(state.toPlay,seed,person);
-    const decision=M.decide(carried,state,{simulations:playouts,cPuct,expandThreshold,raveBias,fpuReduction,survey,regionStrength,random,fastPlayouts,eyeMode,eyeWeight});
+    const decision=M.decide(carried,state,{simulations:playouts,cPuct,expandThreshold,raveBias,fpuReduction,survey,regionStrength,random,fastPlayouts,eyeMode,eyeWeight,ladders,rolloutLadders});
     return{point:decision.point,mind:decision.mind,
       stats:{playouts:decision.stats.playouts,expansions:decision.stats.expansions,
         plan:decision.plan,score:decision.score,maxDepth:decision.stats.maxDepth,

@@ -20,6 +20,7 @@
     "go:style:profile": "node tools/style-profile.cjs",
     "go:style:cluster": "node tools/style-cluster.cjs --k 5",
     "go:style:fit": "node --max-old-space-size=6144 tools/style-fit.cjs --positions 40000",
-    "go:style:arena": "node tools/style-arena.cjs --all --games 20 --playouts 600"
+    "go:style:arena": "node tools/style-arena.cjs --all --games 20 --playouts 600",
+    "go:ladder": "node tools/style-arena.cjs --a none --b none --a-ladders on --b-ladders off --games 40 --playouts 600"
   }
 }

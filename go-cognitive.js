@@ -3,10 +3,11 @@
   const patterns=typeof module!=="undefined"&&module.exports?require("./go-patterns.js"):root.NcGoPatterns;
   const eyes=typeof module!=="undefined"&&module.exports?require("./go-eyes.js"):root.NcGoEyes;
   const style=typeof module!=="undefined"&&module.exports?require("./go-style.js"):root.NcGoStyle;
-  const api=factory(core,patterns,eyes,style);
+  const ladder=typeof module!=="undefined"&&module.exports?require("./go-ladder.js"):root.NcGoLadder;
+  const api=factory(core,patterns,eyes,style,ladder);
   if(typeof module!=="undefined"&&module.exports)module.exports=api;
   root.NcGoCognitive=api;
-})(typeof globalThis!=="undefined"?globalThis:this,function(C,Pat,Eyes,St){
+})(typeof globalThis!=="undefined"?globalThis:this,function(C,Pat,Eyes,St,Ladder){
   "use strict";
 
   const{EMPTY,BLACK,WHITE,PASS,other,tables,collectGroup,scoreBoard}=C;
@@ -15,6 +16,11 @@
   // archetype played in four of five book games arrives about e^1.8 times more attractive than one it
   // never played; enough to steer the opening, not enough to override a capture or a self-atari.
   const BOOK_STRENGTH=2.2;
+  // The ladder guard's two numbers, in the same log-odds units. The penalty has to outweigh what the
+  // rescue-shaped priors pay for running — `Pat.score` alone gives 1.9*log1p(rescue), and the `defend`
+  // and `live` frames add more on top — without being so large that it reads as a hard prune. The
+  // bonus is smaller: chasing a ladder that works is good, but it is one move among several good ones.
+  const LADDER_PENALTY=3.4,LADDER_BONUS=1.3;
   const clamp=(n,a=0,b=1)=>Math.max(a,Math.min(b,n));
 
   // One pass over the board: every group, its size and its liberties.
@@ -121,7 +127,8 @@
   // the specific points that make or break an eye, and a hard penalty on points inside territory that
   // Benson's algorithm has *proved* settled. The second is a prune rather than a re-weight — it says
   // "there is nothing here to search", which is the one thing the regional matrix was never able to say.
-  function policyPriors(state,mind,moves,{temperature=1,eyeSurvey=null,eyeWeight=1.1}={}){
+  function policyPriors(state,mind,moves,{temperature=1,eyeSurvey=null,eyeWeight=1.1,
+  ladders=true,ladderPenalty=LADDER_PENALTY,ladderBonus=LADDER_BONUS}={}){
     const bonus=FRAME_BONUS[mind.activePlan]||FRAME_BONUS.expand;
     const vital=eyeSurvey?eyeSurvey.vital:null,settled=eyeSurvey?eyeSurvey.settled:null;
     const allowPass=passReady(state,eyeSurvey);
@@ -138,6 +145,17 @@
       let value=Pat.score(f)+bonus(f);
       if(vital)value+=eyeWeight*vital[point];
       if(settled&&settled[point])value-=3.5;
+      // The ladder layer, consulted only where a ladder is a fight rather than a technicality. Short of
+      // liberties is not enough on its own: a lone stone on the 1-1 point is strictly ladder-capturable
+      // along the first line, and penalising that would be the line prior's job done twice and badly.
+      // What makes it a ladder worth avoiding is an enemy stone already touching — a contact move, or a
+      // rescue of a group that is already in atari, which is the shape that walks this engine into
+      // losing a whole chain one stone at a time.
+      if(ladders){
+        if(!f.selfAtari&&!f.capture&&f.liberties<=2&&(f.contact>0||f.rescue>0)
+          &&Ladder.selfAtariLadder(state,point,state.toPlay))value-=ladderPenalty;
+        else if(f.threaten>0&&Ladder.laddersEnemy(state,point,state.toPlay))value+=ladderBonus;
+      }
       if(personality){
         value+=St.moveBonus(personality,state.board,state.size,point,state.toPlay,f);
         if(bookShare){
@@ -165,6 +183,6 @@
     return{mind:next,message:`${plan} (${(next.plans[plan]).toFixed(2)})`};
   }
 
-  return{PLANS,BOOK_STRENGTH,survey,metrics,createMind,copyMind,activation,updatePlans,policyPriors,
-    commitDecision,FRAME_BONUS,passReady};
+  return{PLANS,BOOK_STRENGTH,LADDER_PENALTY,LADDER_BONUS,survey,metrics,createMind,copyMind,activation,
+    updatePlans,policyPriors,commitDecision,FRAME_BONUS,passReady};
 });

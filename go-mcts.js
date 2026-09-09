@@ -23,7 +23,7 @@
     let total=0;
     for(let i=0;i<options.leafPlayouts;i++){
       stats.playouts++;
-      total+=roll(state,random,{amaf,style:options.style}).winner===state.toPlay?1:-1;
+      total+=roll(state,random,{amaf,style:options.style,ladders:options.rolloutLadders}).winner===state.toPlay?1:-1;
     }
     return total/options.leafPlayouts;
   }
@@ -50,7 +50,8 @@
       }
     }
     const ranked=G.policyPriors(node.state,mind,moves,
-      {temperature:options.temperature,eyeSurvey:survey,eyeWeight:options.eyeWeight});
+      {temperature:options.temperature,eyeSurvey:survey,eyeWeight:options.eyeWeight,
+        ladders:options.ladders,ladderPenalty:options.ladderPenalty,ladderBonus:options.ladderBonus});
     node.edges=ranked.map(x=>({point:x.point,prior:x.prior,policyScore:x.score,visits:0,valueSum:0,
       raveVisits:0,raveValueSum:0,child:null}));
     const total=node.edges.reduce((sum,edge)=>sum+edge.prior,0)||1;
@@ -151,7 +152,7 @@
   }
 
   function decide(sourceMind,state,{simulations=2000,cPuct=1.2,maxDepth=40,expandThreshold=6,leafPlayouts=1,temperature=1,raveBias=.015,fpuReduction=.2,survey=null,regionStrength=.8,random=null,fastPlayouts=true,
-  eyeMode="root",eyeWeight=1.1}={}){
+  eyeMode="root",eyeWeight=1.1,ladders=true,ladderPenalty=G.LADDER_PENALTY,ladderBonus=G.LADDER_BONUS,rolloutLadders=false}={}){
     const mind=G.updatePlans(sourceMind,state);
     const draw=random||C.rng((mind.seed+state.moveNumber*7919)>>>0);
     // Only the fast playout can carry a style: the reference playout is the correctness oracle the
@@ -163,6 +164,9 @@
     const style=personality&&fastPlayouts&&personality.styleWeight>0&&personality.playoutWeight>0&&personality.patterns.size
       ?{table:St.playoutTable(personality,personality.playoutWeight*personality.styleWeight)}:null;
     const options={cPuct,maxDepth,expandThreshold,leafPlayouts,temperature,raveBias,fpuReduction,eyeMode,eyeWeight,style,
+      // Off unless asked for: reading a ladder inside the rollout costs ~89% of playout throughput,
+      // which at a fixed clock is most of the search. See the arena numbers in the README.
+      ladders,ladderPenalty,ladderBonus,rolloutLadders:ladders&&rolloutLadders&&fastPlayouts,
       playoutImpl:fastPlayouts?FP.playout:P.playout};
     const amaf=new Int8Array(state.size*state.size);
     const root=makeNode(state);

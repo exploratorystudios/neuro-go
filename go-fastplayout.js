@@ -2,10 +2,11 @@
   const core=typeof module!=="undefined"&&module.exports?require("./go-core.js"):root.NcGoCore;
   const fast=typeof module!=="undefined"&&module.exports?require("./go-fastboard.js"):root.NcGoFastBoard;
   const style=typeof module!=="undefined"&&module.exports?require("./go-style.js"):root.NcGoStyle;
-  const api=factory(core,fast,style);
+  const ladder=typeof module!=="undefined"&&module.exports?require("./go-ladder.js"):root.NcGoLadder;
+  const api=factory(core,fast,style,ladder);
   if(typeof module!=="undefined"&&module.exports)module.exports=api;
   root.NcGoFastPlayout=api;
-})(typeof globalThis!=="undefined"?globalThis:this,function(C,F,St){
+})(typeof globalThis!=="undefined"?globalThis:this,function(C,F,St,Ladder){
   "use strict";
 
   const EMPTY=0,PASS=-1;
@@ -20,7 +21,7 @@
   }
   function buffers(size){
     let b=BUF.get(size);
-    if(!b){b={local:new Int32Array(8),atari:new Int32Array(8),weight:new Float64Array(8)};BUF.set(size,b)}
+    if(!b){b={local:new Int32Array(8),atari:new Int32Array(8),mine:new Uint8Array(8),weight:new Float64Array(8)};BUF.set(size,b)}
     return b;
   }
 
@@ -51,19 +52,46 @@ function localStyled(fb,color,ko,random,buf,m,style){
   return buf.local[n-1];
 }
 
-function step(fb,color,ko,lastMove,random,buf,style){
+// Answering an atari by extending is the rollout's strongest habit, and on a laddered group it is the
+// one that matters most: it makes a chain that is already lost evaluate as though it survived, which is
+// how a doomed escape keeps its value in the tree no matter how hard the priors push it down. The check
+// runs only on the escape branch — capturing an enemy chain in atari is always worth doing.
+const LADDER_SCRATCH=new Map();
+function ladderLost(fb,point,color){
+  const size=fb.size;
+  let board=LADDER_SCRATCH.get(size);
+  if(!board){board=new Int8Array(size*size);LADDER_SCRATCH.set(size,board)}
+  board.set(fb.color);
+  const{neighbors}=C.tables(size);
+  if(!C.isLegalPlacement(board,neighbors,point,color))return false;
+  C.placeStone(board,neighbors,point,color);
+  if(C.libertiesAtLeast(board,neighbors,point,3)>=3)return false;
+  return Ladder.read(board,size,point,{attackerToMove:true,budget:120});
+}
+
+function step(fb,color,ko,lastMove,random,buf,style,ladders){
     if(lastMove>=0){
       const{nb,nbStart,a8,a8Start}=fb.t;
       let n=0;
       const consider=v=>{
         if(fb.color[v]===EMPTY)return;
         const liberty=F.ataryLiberty(fb,v);
-        if(liberty>=0)buf.atari[n++]=liberty;
+        if(liberty>=0){buf.mine[n]=fb.color[v]===color?1:0;buf.atari[n++]=liberty}
       };
       consider(lastMove);
       for(let i=nbStart[lastMove],e=nbStart[lastMove+1];i<e;i++)consider(nb[i]);
-      for(let i=n-1;i>0;i--){const j=(random()*(i+1))|0;const t=buf.atari[i];buf.atari[i]=buf.atari[j];buf.atari[j]=t}
-      for(let i=0;i<n;i++)if(playable(fb,buf.atari[i],color,ko))return buf.atari[i];
+      for(let i=n-1;i>0;i--){
+        const j=(random()*(i+1))|0;
+        const t=buf.atari[i];buf.atari[i]=buf.atari[j];buf.atari[j]=t;
+        const m=buf.mine[i];buf.mine[i]=buf.mine[j];buf.mine[j]=m;
+      }
+      for(let i=0;i<n;i++){
+        const point=buf.atari[i];
+        if(!playable(fb,point,color,ko))continue;
+        // Only an escape is worth doubting: a point adjacent to a friendly chain in atari.
+        if(ladders&&buf.mine[i]&&ladderLost(fb,point,color))continue;
+        return point;
+      }
 
       const s=a8Start[lastMove],e=a8Start[lastMove+1];
       let m=0;
@@ -97,14 +125,14 @@ function step(fb,color,ko,lastMove,random,buf,style){
   }
 
   // `amaf`, when supplied, records which colour first played each point — the statistic RAVE needs.
-  function playout(state,random,{maxMoves=null,amaf=null,style=null}={}){
+  function playout(state,random,{maxMoves=null,amaf=null,style=null,ladders=false}={}){
     const size=state.size,fb=pooled(size),buf=buffers(size);
     F.load(fb,state.board,state.ko);
     shuffleEmpties(fb,random);
     const limit=maxMoves??size*size*2;
     let color=state.toPlay,ko=state.ko,passes=state.passes,moves=0,lastMove=state.lastMove;
     while(passes<2&&moves<limit){
-      const point=step(fb,color,ko,lastMove,random,buf,style);
+      const point=step(fb,color,ko,lastMove,random,buf,style,ladders);
       if(point!==PASS){
         passes=0;
         if(amaf&&amaf[point]===0)amaf[point]=color;

@@ -1,0 +1,145 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Neuro-Cognitive Go</title>
+  <style>
+    :root{color-scheme:dark;--ink:#f7f2e8;--muted:#a9a49b;--panel:#17191e;--line:#3a2b1f;--accent:#f0a35b;--green:#89d6b0}
+    *{box-sizing:border-box} body{margin:0;background:#0d0f12;color:var(--ink);font:15px/1.45 system-ui,-apple-system,Segoe UI,sans-serif}
+    .shell{width:min(1120px,100%);margin:0 auto;padding:34px 22px 46px}.top{display:flex;justify-content:space-between;align-items:end;gap:20px;margin-bottom:24px}
+    h1{font:650 clamp(28px,5vw,46px)/1.02 Georgia,serif;letter-spacing:-.03em;margin:0}.subtitle{color:var(--muted);margin:9px 0 0;max-width:580px}
+    .eyebrow{text-transform:uppercase;letter-spacing:.16em;color:var(--accent);font-size:11px;font-weight:700;margin-bottom:10px}
+    /* Controls first, board second: the panel sits on the left so it stays in view while playing. */
+    .layout{display:grid;grid-template-columns:300px minmax(0,690px);gap:28px;align-items:start}
+    .board-wrap{background:#c98c4b;border-radius:18px;padding:clamp(12px,2.5vw,25px);box-shadow:0 18px 65px #0008,inset 0 1px #f6c27a55}
+    svg{display:block;width:100%;height:auto;background:#d39a58;border-radius:7px;touch-action:manipulation}.grid{stroke:#49311f;stroke-width:2}.star{fill:#49311f}
+    .stone{stroke:#161616;stroke-width:2}.black{fill:#131416}.white{fill:#f5f0e6}
+    .stone.dead{opacity:.4;stroke-dasharray:7 6}.dead-mark{stroke:#b3261e;stroke-width:6;stroke-linecap:round;pointer-events:none}
+    .last{fill:none;stroke:#ef6d38;stroke-width:5}
+    .hit{fill:transparent;cursor:pointer}.hit:hover{fill:#ffffff22}.hit.disabled{cursor:default}
+    .labels{display:flex;justify-content:space-between;color:#5d3e25;font-size:11px;margin:5px 9% 0;letter-spacing:.16em;font-weight:700}
+    .panel{background:var(--panel);border:1px solid #ffffff12;border-radius:16px;padding:20px;box-shadow:0 14px 40px #0003;position:sticky;top:22px}
+    .status{font-size:19px;font-weight:650;margin-bottom:4px}.detail{color:var(--muted);min-height:24px}
+    .last-action{margin-top:10px;font-size:13px;color:#d8d3ca;display:flex;align-items:center;gap:7px;min-height:22px}
+    .chip{display:inline-block;border-radius:999px;padding:2px 9px;font-size:11px;font-weight:750;letter-spacing:.06em;text-transform:uppercase}
+    .chip.pass{background:#3b2f1c;color:var(--accent);border:1px solid #f0a35b55}.chip.stone-move{background:#232830;color:var(--muted);border:1px solid #ffffff1a}
+    .actions{display:flex;gap:9px;margin:18px 0 14px}
+    button{font:inherit;color:var(--ink);background:#292d35;border:1px solid #ffffff18;border-radius:9px;padding:10px 13px;cursor:pointer}button:hover{background:#363c47}
+    button.primary{background:var(--accent);border-color:var(--accent);color:#24170e;font-weight:750}button:disabled{opacity:.45;cursor:default}
+    .toggle{display:flex;align-items:center;gap:9px;background:#0e1014;border:1px solid #ffffff10;border-radius:10px;padding:10px 11px;cursor:pointer;font-size:13px}
+    .toggle input{accent-color:var(--accent);width:16px;height:16px;cursor:pointer}.toggle small{display:block;color:var(--muted);font-size:11.5px;margin-top:2px}
+    .score{display:grid;grid-template-columns:1fr 1fr;gap:9px;margin:16px 0 4px}.score div{background:#0e1014;border-radius:10px;padding:11px}.score b{display:block;font-size:20px}.score span{color:var(--muted);font-size:12px}
+    .score-note{color:var(--muted);font-size:11.5px;min-height:16px}
+    .section-title{text-transform:uppercase;letter-spacing:.13em;color:var(--muted);font-size:11px;font-weight:700;margin:21px 0 9px}
+    .history{display:grid;gap:5px;color:#d8d3ca;font-size:13px;max-height:230px;overflow:auto}.history span{color:var(--muted);margin-right:7px}.history em{color:var(--accent);font-style:normal}
+    .help{color:var(--muted);font-size:13px;margin-top:22px}.error{color:#ff9b86;min-height:20px;font-size:13px}
+    @media(max-width:980px){.top{display:block}.layout{grid-template-columns:1fr}.panel{position:static}.history{max-height:none}}
+    @media(max-width:520px){.shell{padding:23px 12px 30px}.board-wrap{padding:9px;border-radius:12px}.actions button{flex:1}}
+  </style>
+</head>
+<body>
+  <main class="shell">
+    <header class="top"><div><div class="eyebrow">A small machine for a large game</div><h1>Neuro-Cognitive Go</h1><p class="subtitle">You play Black. The eye-aware PUCT engine plays White. Click an intersection to make your move.</p></div></header>
+    <section class="layout">
+      <aside class="panel">
+        <div><div class="status" id="status">Loading…</div><div class="detail" id="detail"></div></div>
+        <div class="last-action" id="last-action"></div>
+        <div class="actions"><button class="primary" id="pass">Pass</button><button id="new">New game</button></div>
+        <label class="toggle"><input type="checkbox" id="dead-toggle" checked><span>Show dead stones<small id="dead-count">Reading the position each move</small></span></label>
+        <div class="error" id="error"></div>
+        <div class="score"><div><span id="black-label">Black</span><b id="black-score">0</b></div><div><span id="white-label">White + komi</span><b id="white-score">7.5</b></div></div>
+        <div class="score-note" id="score-note"></div>
+        <div class="section-title">Recent moves</div><div class="history" id="history"></div>
+        <p class="help">The engine runs server-side. Dead-stone reading is a live ownership estimate, so it firms up as the position settles.</p>
+      </aside>
+      <div class="board-wrap"><svg id="board" viewBox="0 0 900 900" role="img" aria-label="9 by 9 Go board"></svg><div class="labels"><span>A</span><span>B</span><span>C</span><span>D</span><span>E</span><span>F</span><span>G</span><span>H</span><span>J</span></div></div>
+    </section>
+  </main>
+  <script>
+    const $=id=>document.querySelector(id);
+    const board=$("#board"),statusEl=$("#status"),detailEl=$("#detail"),errorEl=$("#error"),lastActionEl=$("#last-action"),deadToggle=$("#dead-toggle");
+    const STORE="ncgo.moves",DEAD_PREF="ncgo.showDead";
+    let game=null,busy=false,moves=[];
+    let showDead=localStorage.getItem(DEAD_PREF)!=="0";
+    deadToggle.checked=showDead;
+
+    const xy=p=>({x:50+(p%9)*100,y:50+Math.floor(p/9)*100});
+    const esc=s=>String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;"}[c]));
+    const side=c=>c==="black"?"Black":"White";
+
+    function drawBoard(){
+      const dead=showDead?new Set(game.dead):new Set(),lines=[];
+      for(let i=0;i<9;i++){const p=50+i*100;lines.push(`<line class="grid" x1="50" y1="${p}" x2="850" y2="${p}"/><line class="grid" x1="${p}" y1="50" x2="${p}" y2="850"/>`)}
+      for(const p of [20,24,60,64]){const q=xy(p);lines.push(`<circle class="star" cx="${q.x}" cy="${q.y}" r="6"/>`)}
+      for(let p=0;p<81;p++){
+        const q=xy(p),v=game.board[p],isDead=v&&dead.has(p);
+        const stone=v?`<circle class="stone ${v===1?"black":"white"}${isDead?" dead":""}" cx="${q.x}" cy="${q.y}" r="37"/>`:"";
+        const mark=isDead?`<path class="dead-mark" d="M${q.x-17} ${q.y-17}L${q.x+17} ${q.y+17}M${q.x+17} ${q.y-17}L${q.x-17} ${q.y+17}"/>`:"";
+        // A pass leaves `lastMove` at -1, so no intersection is ever marked as the latest move once
+        // someone has passed — the board never keeps claiming a move that is no longer the last one.
+        const last=game.lastMove>=0&&game.lastMove===p?`<circle class="last" cx="${q.x}" cy="${q.y}" r="13"/>`:"";
+        const disabled=game.toPlay!=="black"||busy||v||game.gameOver?"disabled":"";
+        lines.push(`${stone}${mark}${last}<circle class="hit ${disabled}" data-point="${p}" cx="${q.x}" cy="${q.y}" r="45"/>`);
+      }
+      board.innerHTML=lines.join("");
+    }
+
+    function drawStatus(){
+      const over=game.gameOver,last=game.lastAction;
+      statusEl.textContent=over?"Game over":busy?"The engine is thinking…":game.toPlay==="black"?"Your turn — Black":"White to move";
+      detailEl.textContent=over?(game.result||"Start a new game to play again."):
+        busy?"The eye layer is reading the position.":
+        game.toPlay==="black"?"Choose an intersection or pass.":"Waiting on White.";
+      // Rebuilt from the current snapshot every render, so it can never describe an earlier move.
+      if(busy&&!over)lastActionEl.innerHTML="";
+      else if(!last)lastActionEl.textContent="No moves yet — Black opens";
+      else if(last.pass)lastActionEl.innerHTML=`<span class="chip pass">Pass</span>${esc(side(last.color))} passed`;
+      else lastActionEl.innerHTML=`<span class="chip stone-move">${esc(last.label)}</span>${esc(side(last.color))} played ${esc(last.label)}`;
+    }
+
+    function drawScore(){
+      const s=showDead?game.deadScore:game.score,removed=game.dead.length;
+      $("#black-label").textContent="Black";
+      $("#white-label").textContent="White + komi";
+      $("#black-score").textContent=s.black;
+      $("#white-score").textContent=(s.white+s.komi).toFixed(1);
+      const lead=s.margin>0?`Black leads by ${s.margin.toFixed(1)}`:`White leads by ${(-s.margin).toFixed(1)}`;
+      $("#score-note").textContent=showDead?`${lead}, with ${removed} dead stone${removed===1?"":"s"} removed`:`${lead} · area scoring, dead stones left standing`;
+      $("#dead-count").textContent=removed?`${removed} stone${removed===1?"":"s"} currently read as dead`:"Nothing read as dead yet";
+    }
+
+    function drawHistory(){
+      $("#history").innerHTML=game.history.length
+        ?game.history.slice().reverse().map(m=>`<div><span>${side(m.color)[0]}</span>${m.pass?"<em>pass</em>":esc(m.label)}</div>`).join("")
+        :"<div class='detail'>No moves yet</div>";
+    }
+
+    function draw(){drawBoard();drawStatus();drawScore();drawHistory();$("#pass").disabled=busy||game.gameOver||game.toPlay!=="black"}
+
+    async function request(body){
+      errorEl.textContent="";busy=true;if(game)draw();
+      try{
+        const r=await fetch("/api/game",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)});
+        const x=await r.json();
+        if(!r.ok)throw new Error(x.error||"Request failed");
+        game=x;moves=x.moves;localStorage.setItem(STORE,JSON.stringify(moves));
+      }catch(e){errorEl.textContent=e.message}
+      finally{busy=false;if(game)draw()}
+    }
+
+    board.addEventListener("click",e=>{
+      const hit=e.target.closest("[data-point]");
+      if(hit&&!hit.classList.contains("disabled"))request({moves,point:Number(hit.dataset.point)});
+    });
+    $("#pass").addEventListener("click",()=>{if(!busy&&game&&!game.gameOver&&game.toPlay==="black")request({moves,point:-1})});
+    $("#new").addEventListener("click",()=>{moves=[];request({moves:[]})});
+    deadToggle.addEventListener("change",()=>{
+      showDead=deadToggle.checked;localStorage.setItem(DEAD_PREF,showDead?"1":"0");if(game)draw();
+    });
+
+    try{const saved=JSON.parse(localStorage.getItem(STORE)||"[]");if(Array.isArray(saved))moves=saved}catch(e){moves=[]}
+    request({moves});
+  </script>
+</body>
+</html>

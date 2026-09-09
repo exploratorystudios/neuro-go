@@ -1,0 +1,890 @@
+{
+ "axes": [
+  "contact",
+  "answer",
+  "tenuki",
+  "edge",
+  "third",
+  "center",
+  "capture",
+  "atari",
+  "rescue",
+  "selfAtari",
+  "connect",
+  "liberties",
+  "openingEdge",
+  "openingCenter",
+  "length",
+  "margin"
+ ],
+ "reliability": {
+  "contact": 0.489,
+  "answer": 0.635,
+  "tenuki": 0.476,
+  "edge": 0.556,
+  "third": 0.52,
+  "center": 0.661,
+  "capture": 0.465,
+  "atari": 0.422,
+  "rescue": 0.187,
+  "selfAtari": 0.553,
+  "connect": 0.334,
+  "liberties": 0.406,
+  "openingEdge": 0.616,
+  "openingCenter": 0.696,
+  "length": 0.612,
+  "margin": 0.887
+ },
+ "weights": {
+  "contact": 0.489,
+  "answer": 0.635,
+  "tenuki": 0.476,
+  "edge": 0.556,
+  "third": 0.52,
+  "center": 0.661,
+  "capture": 0.465,
+  "atari": 0.422,
+  "rescue": 0,
+  "selfAtari": 0.553,
+  "connect": 0.334,
+  "liberties": 0.406,
+  "openingEdge": 0.616,
+  "openingCenter": 0.696,
+  "length": 0.612,
+  "margin": 0
+ },
+ "mean": {
+  "contact": 0.6502,
+  "answer": 0.5868,
+  "tenuki": 0.3479,
+  "edge": 0.5727,
+  "third": 0.2643,
+  "center": 0.163,
+  "capture": 0.0716,
+  "atari": 0.2339,
+  "rescue": 0.0911,
+  "selfAtari": 0.0099,
+  "connect": 0.5173,
+  "liberties": 3.6376,
+  "openingEdge": 0.3447,
+  "openingCenter": 0.2392,
+  "length": 27.5897,
+  "margin": 2.3505
+ },
+ "sd": {
+  "contact": 0.0189,
+  "answer": 0.0231,
+  "tenuki": 0.0189,
+  "edge": 0.02,
+  "third": 0.014,
+  "center": 0.0155,
+  "capture": 0.0132,
+  "atari": 0.021,
+  "rescue": 0.0083,
+  "selfAtari": 0.0047,
+  "connect": 0.0143,
+  "liberties": 0.0735,
+  "openingEdge": 0.0301,
+  "openingCenter": 0.0316,
+  "length": 1.5757,
+  "margin": 3.3097
+ },
+ "k": 5,
+ "minGames": 20,
+ "seed": 7,
+ "inertia": 318.232,
+ "coveredPlayers": 140,
+ "coveredSides": 13344,
+ "clusters": [
+  {
+   "id": 1,
+   "label": "fights at contact, hunts atari, takes stones, plays into tight spots",
+   "players": 56,
+   "games": 3148,
+   "winRate": 0.681,
+   "rating": 2370,
+   "centre": {
+    "contact": 0.6609,
+    "answer": 0.5833,
+    "tenuki": 0.3501,
+    "edge": 0.5751,
+    "third": 0.2606,
+    "center": 0.1643,
+    "capture": 0.0779,
+    "atari": 0.2447,
+    "rescue": 0.0906,
+    "selfAtari": 0.0106,
+    "connect": 0.5146,
+    "liberties": 3.6083,
+    "openingEdge": 0.3403,
+    "openingCenter": 0.2489,
+    "length": 28.0481,
+    "margin": 2.7271
+   },
+   "z": {
+    "contact": 0.57,
+    "answer": -0.15,
+    "tenuki": 0.12,
+    "edge": 0.12,
+    "third": -0.27,
+    "center": 0.09,
+    "capture": 0.47,
+    "atari": 0.51,
+    "rescue": -0.07,
+    "selfAtari": 0.15,
+    "connect": -0.19,
+    "liberties": -0.4,
+    "openingEdge": -0.15,
+    "openingCenter": 0.31,
+    "length": 0.29,
+    "margin": 0.11
+   },
+   "members": [
+    {
+     "name": "jinbeshark",
+     "games": 111
+    },
+    {
+     "name": "tata01",
+     "games": 110
+    },
+    {
+     "name": "inunezumi",
+     "games": 103
+    },
+    {
+     "name": "boneless",
+     "games": 100
+    },
+    {
+     "name": "bluedragon",
+     "games": 94
+    },
+    {
+     "name": "matsuchuu",
+     "games": 90
+    },
+    {
+     "name": "mirai05",
+     "games": 87
+    },
+    {
+     "name": "matta",
+     "games": 85
+    },
+    {
+     "name": "solaryth",
+     "games": 82
+    },
+    {
+     "name": "tricksniper",
+     "games": 81
+    },
+    {
+     "name": "hotmelon",
+     "games": 80
+    },
+    {
+     "name": "ton4",
+     "games": 79
+    },
+    {
+     "name": "facedragon",
+     "games": 71
+    },
+    {
+     "name": "takakaze",
+     "games": 69
+    },
+    {
+     "name": "rnoec",
+     "games": 68
+    },
+    {
+     "name": "ShawnLee7",
+     "games": 68
+    },
+    {
+     "name": "ymymym",
+     "games": 68
+    },
+    {
+     "name": "white9015",
+     "games": 68
+    },
+    {
+     "name": "comkiller",
+     "games": 67
+    },
+    {
+     "name": "Medousa",
+     "games": 67
+    },
+    {
+     "name": "gotohome",
+     "games": 67
+    },
+    {
+     "name": "gogochargers",
+     "games": 65
+    },
+    {
+     "name": "uxiza",
+     "games": 64
+    },
+    {
+     "name": "harutarou",
+     "games": 63
+    },
+    {
+     "name": "Bluetoad",
+     "games": 62
+    },
+    {
+     "name": "aoaka1515",
+     "games": 60
+    },
+    {
+     "name": "gaokaboy",
+     "games": 59
+    },
+    {
+     "name": "houou_hh",
+     "games": 58
+    },
+    {
+     "name": "Kitsch",
+     "games": 55
+    },
+    {
+     "name": "h_kuma",
+     "games": 54
+    },
+    {
+     "name": "ntst",
+     "games": 51
+    },
+    {
+     "name": "score",
+     "games": 50
+    },
+    {
+     "name": "maze2017jp",
+     "games": 50
+    },
+    {
+     "name": "kevinwen",
+     "games": 47
+    },
+    {
+     "name": "bubutakun",
+     "games": 46
+    },
+    {
+     "name": "atama14",
+     "games": 44
+    },
+    {
+     "name": "takasan354",
+     "games": 42
+    },
+    {
+     "name": "pazuuuu",
+     "games": 41
+    },
+    {
+     "name": "dragonkill21",
+     "games": 39
+    },
+    {
+     "name": "ainu7",
+     "games": 38
+    },
+    {
+     "name": "saki0930",
+     "games": 36
+    },
+    {
+     "name": "lrene",
+     "games": 35
+    },
+    {
+     "name": "destructionM",
+     "games": 34
+    },
+    {
+     "name": "Palko9",
+     "games": 33
+    },
+    {
+     "name": "Thore",
+     "games": 33
+    },
+    {
+     "name": "TeQuiLa_Sauza",
+     "games": 32
+    },
+    {
+     "name": "NANAMIREI",
+     "games": 31
+    },
+    {
+     "name": "always95",
+     "games": 30
+    },
+    {
+     "name": "zozo512",
+     "games": 27
+    },
+    {
+     "name": "kuroda1994",
+     "games": 26
+    },
+    {
+     "name": "iehn",
+     "games": 24
+    },
+    {
+     "name": "siki424",
+     "games": 23
+    },
+    {
+     "name": "boushi117",
+     "games": 21
+    },
+    {
+     "name": "bong9",
+     "games": 20
+    },
+    {
+     "name": "danda",
+     "games": 20
+    },
+    {
+     "name": "Moriarty",
+     "games": 20
+    }
+   ]
+  },
+  {
+   "id": 2,
+   "label": "plays the centre, stays off the edge, opens toward the centre, finishes early",
+   "players": 30,
+   "games": 1676,
+   "winRate": 0.751,
+   "rating": 2325,
+   "centre": {
+    "contact": 0.651,
+    "answer": 0.6,
+    "tenuki": 0.3366,
+    "edge": 0.5488,
+    "third": 0.269,
+    "center": 0.1822,
+    "capture": 0.062,
+    "atari": 0.2253,
+    "rescue": 0.0935,
+    "selfAtari": 0.008,
+    "connect": 0.5173,
+    "liberties": 3.6669,
+    "openingEdge": 0.3186,
+    "openingCenter": 0.271,
+    "length": 26.18,
+    "margin": 3.608
+   },
+   "z": {
+    "contact": 0.04,
+    "answer": 0.57,
+    "tenuki": -0.6,
+    "edge": -1.19,
+    "third": 0.33,
+    "center": 1.24,
+    "capture": -0.73,
+    "atari": -0.41,
+    "rescue": 0.28,
+    "selfAtari": -0.42,
+    "connect": 0,
+    "liberties": 0.4,
+    "openingEdge": -0.87,
+    "openingCenter": 1.01,
+    "length": -0.89,
+    "margin": 0.38
+   },
+   "members": [
+    {
+     "name": "tarorin79",
+     "games": 112
+    },
+    {
+     "name": "ttnami",
+     "games": 99
+    },
+    {
+     "name": "kagen01",
+     "games": 96
+    },
+    {
+     "name": "qwerty123456",
+     "games": 84
+    },
+    {
+     "name": "AHAHAC",
+     "games": 82
+    },
+    {
+     "name": "dognose24",
+     "games": 77
+    },
+    {
+     "name": "tatubay",
+     "games": 75
+    },
+    {
+     "name": "bahha",
+     "games": 71
+    },
+    {
+     "name": "FoolishLizard",
+     "games": 71
+    },
+    {
+     "name": "izumi981",
+     "games": 69
+    },
+    {
+     "name": "igobiginner",
+     "games": 64
+    },
+    {
+     "name": "doctorm",
+     "games": 61
+    },
+    {
+     "name": "tyrannoDS",
+     "games": 61
+    },
+    {
+     "name": "femizaburo",
+     "games": 58
+    },
+    {
+     "name": "yfdndct",
+     "games": 57
+    },
+    {
+     "name": "ria3",
+     "games": 56
+    },
+    {
+     "name": "donkouu",
+     "games": 47
+    },
+    {
+     "name": "beckon",
+     "games": 47
+    },
+    {
+     "name": "rednada",
+     "games": 41
+    },
+    {
+     "name": "pokerpro",
+     "games": 40
+    },
+    {
+     "name": "GOSICK",
+     "games": 38
+    },
+    {
+     "name": "vegeta4006",
+     "games": 38
+    },
+    {
+     "name": "Serval",
+     "games": 36
+    },
+    {
+     "name": "BirdiGo",
+     "games": 36
+    },
+    {
+     "name": "advn",
+     "games": 32
+    },
+    {
+     "name": "mitink",
+     "games": 29
+    },
+    {
+     "name": "Applepencil",
+     "games": 27
+    },
+    {
+     "name": "Tungpo",
+     "games": 25
+    },
+    {
+     "name": "browncity",
+     "games": 24
+    },
+    {
+     "name": "Aya0BotGo",
+     "games": 23
+    }
+   ]
+  },
+  {
+   "id": 4,
+   "label": "stays low, opens low, hugs the edge, opens on the edge",
+   "players": 27,
+   "games": 1463,
+   "winRate": 0.588,
+   "rating": 2308,
+   "centre": {
+    "contact": 0.6462,
+    "answer": 0.5734,
+    "tenuki": 0.3636,
+    "edge": 0.5931,
+    "third": 0.2628,
+    "center": 0.1441,
+    "capture": 0.0786,
+    "atari": 0.2414,
+    "rescue": 0.0904,
+    "selfAtari": 0.0108,
+    "connect": 0.5169,
+    "liberties": 3.6055,
+    "openingEdge": 0.3705,
+    "openingCenter": 0.2007,
+    "length": 28.5087,
+    "margin": 1.1519
+   },
+   "z": {
+    "contact": -0.21,
+    "answer": -0.58,
+    "tenuki": 0.83,
+    "edge": 1.02,
+    "third": -0.1,
+    "center": -1.22,
+    "capture": 0.53,
+    "atari": 0.35,
+    "rescue": -0.09,
+    "selfAtari": 0.19,
+    "connect": -0.03,
+    "liberties": -0.44,
+    "openingEdge": 0.86,
+    "openingCenter": -1.22,
+    "length": 0.58,
+    "margin": -0.36
+   },
+   "members": [
+    {
+     "name": "aguilar",
+     "games": 130
+    },
+    {
+     "name": "binjip",
+     "games": 124
+    },
+    {
+     "name": "naotin15",
+     "games": 91
+    },
+    {
+     "name": "LUNA525",
+     "games": 78
+    },
+    {
+     "name": "PhenomenalPark",
+     "games": 77
+    },
+    {
+     "name": "baidu",
+     "games": 70
+    },
+    {
+     "name": "taka1979",
+     "games": 68
+    },
+    {
+     "name": "bokkashane",
+     "games": 63
+    },
+    {
+     "name": "sheep0828",
+     "games": 63
+    },
+    {
+     "name": "Lukan",
+     "games": 60
+    },
+    {
+     "name": "rinrin9536",
+     "games": 59
+    },
+    {
+     "name": "sasakami",
+     "games": 56
+    },
+    {
+     "name": "JeffChang",
+     "games": 55
+    },
+    {
+     "name": "KatharinaLauran",
+     "games": 45
+    },
+    {
+     "name": "danna77",
+     "games": 43
+    },
+    {
+     "name": "watermicron",
+     "games": 43
+    },
+    {
+     "name": "youli",
+     "games": 42
+    },
+    {
+     "name": "feles",
+     "games": 40
+    },
+    {
+     "name": "dokumo",
+     "games": 36
+    },
+    {
+     "name": "risonaro",
+     "games": 33
+    },
+    {
+     "name": "HoshizoraRin",
+     "games": 33
+    },
+    {
+     "name": "ueda19601020",
+     "games": 32
+    },
+    {
+     "name": "yohutaro",
+     "games": 29
+    },
+    {
+     "name": "nineplayer",
+     "games": 25
+    },
+    {
+     "name": "weifan1",
+     "games": 23
+    },
+    {
+     "name": "fdhcl",
+     "games": 23
+    },
+    {
+     "name": "eakon",
+     "games": 22
+    }
+   ]
+  },
+  {
+   "id": 3,
+   "label": "keeps its stones breathing, rarely ataris, avoids contact, leaves stones alone",
+   "players": 23,
+   "games": 1088,
+   "winRate": 0.602,
+   "rating": 2233,
+   "centre": {
+    "contact": 0.6329,
+    "answer": 0.6027,
+    "tenuki": 0.3388,
+    "edge": 0.5686,
+    "third": 0.2723,
+    "center": 0.1591,
+    "capture": 0.0602,
+    "atari": 0.2132,
+    "rescue": 0.0908,
+    "selfAtari": 0.007,
+    "connect": 0.5217,
+    "liberties": 3.7121,
+    "openingEdge": 0.3597,
+    "openingCenter": 0.2189,
+    "length": 26.3306,
+    "margin": 1.3928
+   },
+   "z": {
+    "contact": -0.91,
+    "answer": 0.69,
+    "tenuki": -0.48,
+    "edge": -0.21,
+    "third": 0.57,
+    "center": -0.25,
+    "capture": -0.87,
+    "atari": -0.99,
+    "rescue": -0.04,
+    "selfAtari": -0.63,
+    "connect": 0.3,
+    "liberties": 1.01,
+    "openingEdge": 0.5,
+    "openingCenter": -0.64,
+    "length": -0.8,
+    "margin": -0.29
+   },
+   "members": [
+    {
+     "name": "battlershunsuke",
+     "games": 94
+    },
+    {
+     "name": "abcabcabcdef",
+     "games": 90
+    },
+    {
+     "name": "masaki05",
+     "games": 90
+    },
+    {
+     "name": "Alphataro",
+     "games": 84
+    },
+    {
+     "name": "6174",
+     "games": 82
+    },
+    {
+     "name": "pado",
+     "games": 59
+    },
+    {
+     "name": "yhamanishi",
+     "games": 56
+    },
+    {
+     "name": "RNA01",
+     "games": 52
+    },
+    {
+     "name": "sayyesno",
+     "games": 51
+    },
+    {
+     "name": "monocy",
+     "games": 49
+    },
+    {
+     "name": "keana",
+     "games": 45
+    },
+    {
+     "name": "kinn",
+     "games": 43
+    },
+    {
+     "name": "jingai",
+     "games": 42
+    },
+    {
+     "name": "spaoh12",
+     "games": 38
+    },
+    {
+     "name": "teke2",
+     "games": 35
+    },
+    {
+     "name": "kiyomaru0212",
+     "games": 24
+    },
+    {
+     "name": "My_name_is_JK",
+     "games": 23
+    },
+    {
+     "name": "blackrose12",
+     "games": 23
+    },
+    {
+     "name": "qkenr1122",
+     "games": 23
+    },
+    {
+     "name": "tebasaki2015",
+     "games": 22
+    },
+    {
+     "name": "Yoichi_",
+     "games": 22
+    },
+    {
+     "name": "sho1sho2sho3",
+     "games": 21
+    },
+    {
+     "name": "yaruyanke",
+     "games": 20
+    }
+   ]
+  },
+  {
+   "id": 0,
+   "label": "throws stones in, plays long games, ignores the last move, avoids contact",
+   "players": 4,
+   "games": 325,
+   "winRate": 0.643,
+   "rating": 2201,
+   "centre": {
+    "contact": 0.6202,
+    "answer": 0.5338,
+    "tenuki": 0.3479,
+    "edge": 0.6044,
+    "third": 0.245,
+    "center": 0.1506,
+    "capture": 0.075,
+    "atari": 0.217,
+    "rescue": 0.0883,
+    "selfAtari": 0.0261,
+    "connect": 0.5339,
+    "liberties": 3.6186,
+    "openingEdge": 0.3437,
+    "openingCenter": 0.2408,
+    "length": 32.7824,
+    "margin": 1.2437
+   },
+   "z": {
+    "contact": -1.58,
+    "answer": -2.29,
+    "tenuki": 0,
+    "edge": 1.58,
+    "third": -1.37,
+    "center": -0.8,
+    "capture": 0.25,
+    "atari": -0.81,
+    "rescue": -0.35,
+    "selfAtari": 3.44,
+    "connect": 1.16,
+    "liberties": -0.26,
+    "openingEdge": -0.03,
+    "openingCenter": 0.05,
+    "length": 3.3,
+    "margin": -0.33
+   },
+   "members": [
+    {
+     "name": "misaka20001",
+     "games": 90
+    },
+    {
+     "name": "purpledragon",
+     "games": 86
+    },
+    {
+     "name": "ReadingSteiner",
+     "games": 75
+    },
+    {
+     "name": "ToTheHerbs",
+     "games": 74
+    }
+   ]
+  }
+ ]
+}

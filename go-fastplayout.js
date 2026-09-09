@@ -1,10 +1,11 @@
 (function(root,factory){
   const core=typeof module!=="undefined"&&module.exports?require("./go-core.js"):root.NcGoCore;
   const fast=typeof module!=="undefined"&&module.exports?require("./go-fastboard.js"):root.NcGoFastBoard;
-  const api=factory(core,fast);
+  const style=typeof module!=="undefined"&&module.exports?require("./go-style.js"):root.NcGoStyle;
+  const api=factory(core,fast,style);
   if(typeof module!=="undefined"&&module.exports)module.exports=api;
   root.NcGoFastPlayout=api;
-})(typeof globalThis!=="undefined"?globalThis:this,function(C,F){
+})(typeof globalThis!=="undefined"?globalThis:this,function(C,F,St){
   "use strict";
 
   const EMPTY=0,PASS=-1;
@@ -19,7 +20,7 @@
   }
   function buffers(size){
     let b=BUF.get(size);
-    if(!b){b={local:new Int32Array(8),atari:new Int32Array(8)};BUF.set(size,b)}
+    if(!b){b={local:new Int32Array(8),atari:new Int32Array(8),weight:new Float64Array(8)};BUF.set(size,b)}
     return b;
   }
 
@@ -27,7 +28,30 @@
 
   // Same MoGo-style priority the reference playout uses: answer atari around the last move, then play
   // somewhere in its eight-neighbourhood, then anywhere at random.
-  function step(fb,color,ko,lastMove,random,buf){
+  // A personality biases the rollout in exactly one place: the choice among playable points around the
+// last move. Answering atari stays untouched — that is tactics, not taste — and the fallback scan over
+// the whole board stays uniform, because paying for a pattern lookup on every empty point would cost
+// more playouts than the bias is worth. What is left is the local shape decision, which is where a
+// style is visible anyway.
+function localStyled(fb,color,ko,random,buf,m,style){
+  // `style.table` is already exponentiated (see go-style.js playoutTable), so this loop is eight
+  // array reads and eight adds — no transcendental in the hottest loop in the engine.
+  const table=style.table,size=fb.size;
+  let total=0,n=0;
+  for(let i=0;i<m;i++){
+    const p=buf.local[i];
+    if(!playable(fb,p,color,ko))continue;
+    buf.local[n]=p;
+    total+=buf.weight[n]=table[St.rawKey(fb.color,size,p,color)];
+    n++;
+  }
+  if(!n)return -2;
+  let r=random()*total;
+  for(let i=0;i<n;i++){r-=buf.weight[i];if(r<=0)return buf.local[i]}
+  return buf.local[n-1];
+}
+
+function step(fb,color,ko,lastMove,random,buf,style){
     if(lastMove>=0){
       const{nb,nbStart,a8,a8Start}=fb.t;
       let n=0;
@@ -44,8 +68,13 @@
       const s=a8Start[lastMove],e=a8Start[lastMove+1];
       let m=0;
       for(let i=s;i<e;i++)buf.local[m++]=a8[i];
-      for(let i=m-1;i>0;i--){const j=(random()*(i+1))|0;const t=buf.local[i];buf.local[i]=buf.local[j];buf.local[j]=t}
-      for(let i=0;i<m;i++)if(playable(fb,buf.local[i],color,ko))return buf.local[i];
+      if(style){
+        const picked=localStyled(fb,color,ko,random,buf,m,style);
+        if(picked>=0)return picked;
+      }else{
+        for(let i=m-1;i>0;i--){const j=(random()*(i+1))|0;const t=buf.local[i];buf.local[i]=buf.local[j];buf.local[j]=t}
+        for(let i=0;i<m;i++)if(playable(fb,buf.local[i],color,ko))return buf.local[i];
+      }
     }
     // The empty list is shuffled once when the board is loaded, so a rotation is enough here and the
     // whole scan is O(1) in the common case instead of the O(points) reshuffle it replaces.
@@ -68,14 +97,14 @@
   }
 
   // `amaf`, when supplied, records which colour first played each point — the statistic RAVE needs.
-  function playout(state,random,{maxMoves=null,amaf=null}={}){
+  function playout(state,random,{maxMoves=null,amaf=null,style=null}={}){
     const size=state.size,fb=pooled(size),buf=buffers(size);
     F.load(fb,state.board,state.ko);
     shuffleEmpties(fb,random);
     const limit=maxMoves??size*size*2;
     let color=state.toPlay,ko=state.ko,passes=state.passes,moves=0,lastMove=state.lastMove;
     while(passes<2&&moves<limit){
-      const point=step(fb,color,ko,lastMove,random,buf);
+      const point=step(fb,color,ko,lastMove,random,buf,style);
       if(point!==PASS){
         passes=0;
         if(amaf&&amaf[point]===0)amaf[point]=color;

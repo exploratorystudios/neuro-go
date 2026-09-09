@@ -2,3 +2,11 @@ node_modules/
 .vercel/
 .env*.local
 *.log
+
+# Go records and the bulk intermediates derived from them. The corpus is the user's own archive and
+# the two JSONL files are reproducible from it in seconds; the fitted personalities are committed
+# because the engine plays with them.
+go-records/
+data/games.jsonl
+data/game-styles.jsonl
+data/player-styles.json

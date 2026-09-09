@@ -28,8 +28,8 @@ This directory is standalone: nothing here requires `src/` or the card game.
 | First-play urgency | Done — unvisited edges valued at the parent, not at zero |
 | Pass gating (`passReady`) | Done — pass stays out of the tree until the board is developed |
 | GTP engine (`engine.cjs`) | Done — plays in any Go GUI |
+| SGF archive priors (`go-style.js`) | Done — five play-style personalities fitted from 6,672 human 9x9 records |
 | Episodic advisor | Not started |
-| SGF archive priors | Not started |
 
 ## Measured so far
 
@@ -221,6 +221,158 @@ and **`attack` just 2** (over 40 later games at 2000 sims the same imbalance hel
 groups at two liberties or fewer, which a stronger opponent rarely offers. This is untuned rather than
 diagnosed — it may be correct deference, or the threshold may simply be wrong.
 
+## Play-style personalities
+
+The engine can wear a personality fitted from a corpus of human 9x9 game records: `go-records/` holds
+22,324 SGF files from a Go server, all 9x9, Chinese rules, komi 7. A personality is not a different
+engine — it is an additive tilt on the priors, the plan seeds and the rollout policy, and at
+`--style-weight 0` it reproduces the stock engine bit for bit.
+
+```bash
+npm run go:style                             # the whole pipeline: index, profile, cluster, fit
+node engine.cjs --personality brawler        # GTP, or pick one in the browser front end
+npm run go:style:arena                       # what each personality costs in strength
+```
+
+### Only the games that were scored
+
+15,175 of the 22,324 records have no `RE[]` property: on this server that means the game ended in
+resignation, timeout or abandonment. Their final stretch is either missing or played by someone who had
+already given up, so style learned from those tails is style learned from noise. Filtering to scored
+games leaves **7,149**, and dropping the server bots leaves **6,672 games / 13,344 sides**, every one of
+which replays legally against the rules core. That verification is not ceremony: a record that does not
+replay is a record we cannot learn from, and there is no way to know which kind you have without trying.
+
+### The archetypes are measured, not asserted
+
+`tools/style-profile.cjs` measures both sides of every game on sixteen axes — contact rate, answer rate,
+tenuki rate, line distribution, capture and atari rates, self-atari, resulting liberties, opening shape,
+game length — computed from the same `go-patterns` features the engine's own priors are built from. A
+style axis the feature set cannot express is a style the engine has no way to imitate, so measuring one
+would only produce archetypes it cannot play.
+
+Between-player spread on those axes is real but modest, which raises the obvious question: is any of it
+signal? `tools/style-cluster.cjs` answers it before clustering, by splitting each player's own games in
+half and correlating the halves — how much of an axis replicates within one person:
+
+| Axis | Reliability | Axis | Reliability |
+| --- | --- | --- | --- |
+| `margin` | .89 | `edge` | .56 |
+| `openingCenter` | .70 | `selfAtari` | .55 |
+| `center` | .66 | `third` | .52 |
+| `answer` | .64 | `contact` | .49 |
+| `openingEdge` | .62 | `tenuki` | .48 |
+| `length` | .61 | `capture` | .47 |
+| | | `atari` | .42 |
+| | | `liberties` | .41 |
+| | | `connect` | .33 |
+| | | `rescue` | .19 |
+
+Two consequences. `rescue` and `connect` are mostly noise and are dropped; every surviving axis is
+z-scored and then **scaled by its own reliability**, because noise scaled to unit variance pulls a
+k-means as hard as signal does. And `margin` — by far the most reliable axis — is excluded outright: it
+replicates at .89 because it measures how *strong* someone is. Clustering on it would sort the corpus
+into good and bad players and call the result personality.
+
+k-means (k=5, k-means++ seeding, 40 restarts) over the 140 players with 20+ scored games:
+
+| Archetype | Players | Games | Rating | What it does |
+| --- | --- | --- | --- | --- |
+| **Brawler** | 56 | 3,148 | 2370 | fights at contact, hunts atari, takes stones, plays into tight spots |
+| **Skydiver** | 30 | 1,676 | 2325 | plays the centre, stays off the edge, opens high, finishes early |
+| **Landgrabber** | 27 | 1,463 | 2308 | stays low, opens low, hugs the edge, jumps around the board |
+| **Architect** | 23 | 1,088 | 2233 | keeps its stones breathing, rarely ataris, avoids contact |
+| **Grinder** | 4 | 325 | 2201 | throws stones in, plays long games, ignores the last move |
+
+### What is actually fitted
+
+`tools/style-fit.cjs` fits a conditional logit over the legal moves of a position: the probability a
+player chooses a move is the softmax of a linear score over the `go-patterns` features, plus a weight for
+the canonical 3x3 shape being played into. Patterns are folded over the eight board symmetries — a corpus
+this size cannot afford to treat a position and its reflection as two different things.
+
+Everything is stored as a **difference from a pooled baseline** fitted the same way over equal numbers of
+positions from every archetype. That makes a personality a tilt rather than a replacement, keeps the
+engine's own judgement carrying the move, and makes `--style-weight 0` exactly the stock engine — which is
+what makes the arena comparison below mean anything. The baseline is balanced across archetypes on
+purpose: weighted by cluster size it becomes approximately the largest cluster's own model, and that
+cluster's personality then measures as no personality at all.
+
+The fitted deltas are legible. The Grinder's `selfAtari` weight is **+1.09** above baseline — those are
+the throw-ins. The Skydiver pushes priors off lines 1-2 and onto lines 3-4. The Brawler pays more for
+captures and ataris and less for liberties.
+
+Each archetype also gets a symmetry-folded **opening book** of its own players' recorded choices (258
+positions for the Brawler, 30 for the Grinder) and a set of **plan seeds** for the cognitive layer, so a
+personality that fights begins the game already believing in `attack` rather than rediscovering it.
+
+### Held out, and told apart
+
+Fitted on 80% of each archetype's positions, scored on the 20% no model has seen:
+
+```
+held-out log-loss, model (row) on archetype (column) - lower is better
+                Brawler  Skydiver Landgrabb Architect   Grinder
+Brawler          2.4948    2.4648    2.5303    2.4981    2.4673
+Skydiver         2.4937    2.4574    2.5377    2.4967    2.4528
+Landgrabber      2.5102    2.4902    2.5249    2.5026    2.4691
+Architect        2.5029    2.4727    2.5268    2.4911    2.4664
+Grinder          2.5119    2.4799    2.5507    2.5151    2.4178
+```
+
+Four of five archetypes predict their own held-out moves better than any other archetype's model does;
+the Brawler loses its own column to the Skydiver by 0.0011 nats, which is a tie. The models are telling
+each other apart rather than all re-learning "play a good move". The gains are small in absolute terms —
+0.010 to 0.034 nats over the baseline — and they should be: style is a second-order effect next to
+legality and basic soundness, and a method that claimed otherwise would be overfitting.
+
+### It shows up in play, and it is not free
+
+`tools/style-arena.cjs` plays each personality against the stock engine, 20 games, colours alternating,
+600 playouts a move for both sides, then measures both sides' moves with the same axes used on the corpus.
+
+| Personality | vs stock | Style actually shifted |
+| --- | --- | --- |
+| **Architect** | **16-4 (80% ± 9)** | liberties +0.22, opens centre -0.06 |
+| **Brawler** | 12-8 (60% ± 11) | atari +0.074, captures +0.045 |
+| **Skydiver** | 10-10 (50% ± 11) | opens centre +0.058, tenuki -0.035 |
+| **Grinder** | 9-11 (45% ± 11) | tenuki -0.026, liberties +0.11 |
+| **Landgrabber** | **4-16 (20% ± 9)** | atari -0.096, liberties -0.23 |
+
+The styles transfer: the Brawler really does atari 19% more often and capture 35% more often than the
+same engine without it. But imitation and strength pull against each other, and two of these are well
+outside the noise in both directions. The Architect's tilt — keep stones breathing, avoid contact — is
+worth about +240 Elo at this budget, which says as much about the stock priors as about the archetype.
+The Landgrabber's is worth about -240: playing low and answering less is a style the search cannot
+support at 600 playouts. That is the honest result, it is why `styleWeight` is a dial rather than a
+switch, and it is why the arena exists at all. A personality feature that is never measured against the
+engine it modifies is a feature that quietly makes the bot worse.
+
+Twenty games is a coarse instrument — the standard error is 9-11 points — so read the middle three as
+"no measured difference" and only the two extremes as real.
+
+### The moving parts
+
+| File | Role |
+| --- | --- |
+| `go-sgf.js` | SGF reading: root properties and the main line, nothing else |
+| `go-style.js` | Symmetry, canonical 3x3 pattern keys, the personality object, the opening book |
+| `go-personalities.js` | The registry. If `data/personalities.json` is missing the engine still runs |
+| `tools/sgf-index.cjs` | Records to one verified JSONL index of scored games |
+| `tools/style-profile.cjs` | Per-game, per-side style vectors |
+| `tools/style-cluster.cjs` | Reliability weighting, k-means, named archetypes |
+| `tools/style-fit.cjs` | Conditional logit, pattern tables, opening books, held-out evaluation |
+| `tools/style-arena.cjs` | Personality vs stock: strength cost and style verification |
+
+Three settings control how loudly a personality speaks: `--style-weight` (the whole tilt, 0 disables),
+`--book-weight` (the opening book) and `--playout-weight` (the rollout bias). The rollout bias costs
+about 23% of playout throughput, which is why the flat pattern table is pre-exponentiated at load time —
+a `Math.exp` per candidate per rollout move was costing 62%.
+
+`go-records/` and the bulk intermediates are gitignored: the corpus is a personal archive, and everything
+except `data/personalities.json` and `data/personality-clusters.json` regenerates from it in about two
+minutes.
+
 ## Run it
 
 ```bash
@@ -228,6 +380,8 @@ npm test                      # rules, scoring, cognitive and eye-layer tests
 npm run go:baseline:random    # random play vs GNU Go level 1
 npm run go:baseline:flat      # flat Monte Carlo vs GNU Go level 1
 npm run go:puct:level1        # the current engine vs GNU Go level 1
+npm run go:style              # fit the play-style personalities from go-records/
+npm run go:style:arena        # every personality vs the stock engine
 ```
 
 The harness takes `--games --workers --policy --playouts --level --size --komi --handicap --anchor --seed`,
@@ -240,7 +394,12 @@ the settings it ran with, so no two runs can be confused for one another.
 
 ```bash
 node nc-go/engine.cjs --playouts 6000        # point your GUI at this command
+node nc-go/engine.cjs --personality brawler  # ...wearing a fitted play style
 ```
+
+Three GTP extensions come with it: `nc-personality [id]` reads or sets the current personality (`none`
+turns it off), `nc-personality-list` names them, and `nc-style-weight [0..4]` sets how strongly it speaks.
+A GUI that does not know these commands simply never sends them.
 
 ### Playing a human is not the same as playing the benchmark
 

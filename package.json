@@ -2,7 +2,7 @@
   "name": "neuro-go",
   "version": "1.0.0",
   "private": true,
-  "description": "Neuro-Cognitive Go — an eye-aware PUCT engine for 9x9 Go, with a browser front end.",
+  "description": "Neuro-Cognitive Go — an eye-aware PUCT engine for 9x9 Go, with fitted play-style personalities and a browser front end.",
   "license": "MIT",
   "engines": {
     "node": ">=18"
@@ -14,6 +14,12 @@
     "go:baseline:random": "node tools/gnugo-rating.cjs --policy random --level 1",
     "go:baseline:flat": "node tools/gnugo-rating.cjs --policy flat --level 1",
     "go:puct:level1": "node tools/gnugo-rating.cjs --policy puct --level 1",
-    "go:selfplay": "node tools/selfplay.cjs"
+    "go:selfplay": "node tools/selfplay.cjs",
+    "go:style": "npm run go:style:index && npm run go:style:profile && npm run go:style:cluster && npm run go:style:fit",
+    "go:style:index": "node tools/sgf-index.cjs",
+    "go:style:profile": "node tools/style-profile.cjs",
+    "go:style:cluster": "node tools/style-cluster.cjs --k 5",
+    "go:style:fit": "node --max-old-space-size=6144 tools/style-fit.cjs --positions 40000",
+    "go:style:arena": "node tools/style-arena.cjs --all --games 20 --playouts 600"
   }
 }

@@ -2,14 +2,19 @@
   const core=typeof module!=="undefined"&&module.exports?require("./go-core.js"):root.NcGoCore;
   const patterns=typeof module!=="undefined"&&module.exports?require("./go-patterns.js"):root.NcGoPatterns;
   const eyes=typeof module!=="undefined"&&module.exports?require("./go-eyes.js"):root.NcGoEyes;
-  const api=factory(core,patterns,eyes);
+  const style=typeof module!=="undefined"&&module.exports?require("./go-style.js"):root.NcGoStyle;
+  const api=factory(core,patterns,eyes,style);
   if(typeof module!=="undefined"&&module.exports)module.exports=api;
   root.NcGoCognitive=api;
-})(typeof globalThis!=="undefined"?globalThis:this,function(C,Pat,Eyes){
+})(typeof globalThis!=="undefined"?globalThis:this,function(C,Pat,Eyes,St){
   "use strict";
 
   const{EMPTY,BLACK,WHITE,PASS,other,tables,collectGroup,scoreBoard}=C;
   const PLANS=["expand","enclose","attack","defend","endgame","live","kill"];
+  // How loudly the opening book speaks, in the log-odds units the priors are scored in. A move the
+  // archetype played in four of five book games arrives about e^1.8 times more attractive than one it
+  // never played; enough to steer the opening, not enough to override a capture or a self-atari.
+  const BOOK_STRENGTH=2.2;
   const clamp=(n,a=0,b=1)=>Math.max(a,Math.min(b,n));
 
   // One pass over the board: every group, its size and its liberties.
@@ -51,9 +56,13 @@
       ownMinLiberties:Number.isFinite(ownMinLiberties)?ownMinLiberties:4};
   }
 
-  function createMind(color,seed=1){
-    return{color,seed,plans:Object.fromEntries(PLANS.map(id=>[id,.2])),activePlan:"expand",
-      lastScore:null,history:[]};
+  // A personality, when one is given, changes where the mind starts rather than what it can think.
+  // Its plan seeds replace the flat .2 the engine otherwise opens with, and it rides along on the mind
+  // so that every layer reached from here — priors, the tree, the rollouts — sees the same one.
+  function createMind(color,seed=1,personality=null){
+    const flat=Object.fromEntries(PLANS.map(id=>[id,.2]));
+    return{color,seed,personality,plans:personality?St.seedPlans(personality,flat):flat,
+      activePlan:"expand",lastScore:null,history:[]};
   }
   const copyMind=mind=>({...mind,plans:{...mind.plans},history:mind.history.slice(-12)});
 
@@ -116,12 +125,28 @@
     const bonus=FRAME_BONUS[mind.activePlan]||FRAME_BONUS.expand;
     const vital=eyeSurvey?eyeSurvey.vital:null,settled=eyeSurvey?eyeSurvey.settled:null;
     const allowPass=passReady(state,eyeSurvey);
+    // The personality contributes two things here: a per-move tilt in the same log-odds units the
+    // hand-authored score is in, and — while the position is still in the book — the archetype's own
+    // recorded choices. Neither can promote a settled point or an illegal move; both are additive on
+    // top of judgement the engine would have exercised anyway.
+    const personality=mind.personality||null;
+    const book=personality?St.bookMoves(personality,state):null;
+    const bookShare=book?new Map(book.map(entry=>[entry.point,entry.share])):null;
     const scored=moves.map(point=>{
       if(point===PASS)return{point,score:allowPass?-2.5:-Infinity,features:null};
       const f=Pat.features(state,point,state.toPlay,state.lastMove);
       let value=Pat.score(f)+bonus(f);
       if(vital)value+=eyeWeight*vital[point];
       if(settled&&settled[point])value-=3.5;
+      if(personality){
+        value+=St.moveBonus(personality,state.board,state.size,point,state.toPlay,f);
+        if(bookShare){
+          const share=bookShare.get(point);
+          // Scaled by styleWeight as well as its own dial: styleWeight is the whole tilt, and a
+          // personality turned off has to be silent in the opening too.
+          if(share)value+=personality.styleWeight*personality.bookWeight*BOOK_STRENGTH*share;
+        }
+      }
       return{point,score:value,features:f};
     });
     const priors=Pat.softmax(scored.map(x=>x.score),temperature);
@@ -140,5 +165,6 @@
     return{mind:next,message:`${plan} (${(next.plans[plan]).toFixed(2)})`};
   }
 
-  return{PLANS,survey,metrics,createMind,copyMind,activation,updatePlans,policyPriors,commitDecision,FRAME_BONUS,passReady};
+  return{PLANS,BOOK_STRENGTH,survey,metrics,createMind,copyMind,activation,updatePlans,policyPriors,
+    commitDecision,FRAME_BONUS,passReady};
 });

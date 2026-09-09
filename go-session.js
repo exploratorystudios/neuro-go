@@ -4,10 +4,11 @@
   const cognitive=req?require("./go-cognitive.js"):root.NcGoCognitive;
   const players=req?require("./go-players.js"):root.NcGoPlayers;
   const score=req?require("./go-score.js"):root.NcGoScore;
-  const api=factory(core,cognitive,players,score);
+  const people=req?require("./go-personalities.js"):root.NcGoPersonalities;
+  const api=factory(core,cognitive,players,score,people);
   if(req)module.exports=api;
   root.NcGoSession=api;
-})(typeof globalThis!=="undefined"?globalThis:this,function(C,G,PL,S){
+})(typeof globalThis!=="undefined"?globalThis:this,function(C,G,PL,S,People){
   "use strict";
 
   const SIZE=9,KOMI=7.5;
@@ -35,24 +36,28 @@
   // A mind is meant to carry between moves, so a warm process reuses it whenever the incoming move
   // list extends the one it last answered. A cold process just starts a fresh mind: the search is
   // still correct, it has simply forgotten the plans it had built up.
-  const carried={key:null,mind:null};
-  function mindFor(moves,color,seed){
+  const carried={key:null,mind:null,personality:null};
+  function mindFor(moves,color,seed,personality){
     const key=moves.join(",");
-    if(carried.mind&&carried.key!==null&&key.startsWith(carried.key)&&carried.color===color)return carried.mind;
-    return G.createMind(color,seed);
+    if(carried.mind&&carried.key!==null&&key.startsWith(carried.key)&&carried.color===color
+      &&carried.personality===personality)return carried.mind;
+    return G.createMind(color,seed,personality);
   }
-  function remember(moves,mind,color){carried.key=moves.join(",");carried.mind=mind;carried.color=color}
+  function remember(moves,mind,color,personality){
+    carried.key=moves.join(",");carried.mind=mind;carried.color=color;carried.personality=personality;
+  }
 
-  function engineReply(state,moves,{playouts=2000,seed=1}={}){
+  function engineReply(state,moves,{playouts=2000,seed=1,personality=null,styleWeight=1}={}){
     const random=C.rng((seed*2654435761)>>>0);
     const color=state.toPlay;
-    const decision=PL.puctPolicy(state,random,{playouts,mind:mindFor(moves,color,seed),seed,
-      eyeMode:"root",eyeWeight:1.1,fastPlayouts:true});
+    const person=People.resolve(personality,{styleWeight});
+    const decision=PL.puctPolicy(state,random,{playouts,mind:mindFor(moves,color,seed,person),seed,
+      eyeMode:"root",eyeWeight:1.1,fastPlayouts:true,personality:person});
     const next=C.play(state,decision.point);
     if(!next)throw new Error("The engine selected an illegal move");
     const played=moves.concat([decision.point]);
-    remember(played,decision.mind,color);
-    return{state:next,moves:played,entry:entry(color,decision.point)};
+    remember(played,decision.mind,color,person);
+    return{state:next,moves:played,entry:entry(color,decision.point),plan:decision.stats.plan};
   }
 
   const winnerName=margin=>margin>0?"Black":"White";
@@ -74,7 +79,7 @@
       margin:settled.margin,winner:settled.winner}};
   }
 
-  function snapshot(state,moves,history,{deadPlayouts=600,seed=1}={}){
+  function snapshot(state,moves,history,{deadPlayouts=600,seed=1,personality=null,plan=null}={}){
     const raw=C.score(state),settled=readDead(state,{playouts:deadPlayouts,seed});
     const last=history.length?history[history.length-1]:null;
     return{
@@ -85,6 +90,9 @@
       // once a player has passed. `lastAction` says what actually just happened, in words.
       lastAction:last,
       score:raw,deadScore:settled.score,dead:settled.dead,
+      // Which opponent the client is actually facing, echoed back so the front end can never show a
+      // personality the server did not play.
+      opponent:personality?{id:personality.id,name:personality.name,label:personality.label,plan}:null,
       result:resultText(state,settled.score),
       moves:moves.slice(),history:history.slice(-16)
     };
@@ -92,7 +100,8 @@
 
   // One request, one answer: replay what the client has, optionally add its move, then let the engine
   // reply if it is its turn.
-  function advance(moves,point,{playouts=2000,deadPlayouts=600,seed=1}={}){
+  function advance(moves,point,{playouts=2000,deadPlayouts=600,seed=1,personality=null,styleWeight=1}={}){
+    const person=People.resolve(personality,{styleWeight});
     let{state,history}=replay(moves||[]);
     let list=(moves||[]).slice();
     if(point!==undefined&&point!==null){
@@ -102,12 +111,15 @@
       const color=state.toPlay;
       state=C.play(state,point);list=list.concat([point]);history.push(entry(color,point));
     }
+    let plan=null;
     if(!state.gameOver&&state.toPlay===C.WHITE){
-      const reply=engineReply(state,list,{playouts,seed});
-      state=reply.state;list=reply.moves;history.push(reply.entry);
+      const reply=engineReply(state,list,{playouts,seed,personality:person});
+      state=reply.state;list=reply.moves;history.push(reply.entry);plan=reply.plan;
     }
-    return snapshot(state,list,history,{deadPlayouts,seed});
+    return snapshot(state,list,history,{deadPlayouts,seed,personality:person,plan});
   }
 
-  return{SIZE,KOMI,createGame,replay,advance,snapshot,engineReply,readDead,entry};
+  const personalities=()=>People.list();
+
+  return{SIZE,KOMI,createGame,replay,advance,snapshot,engineReply,readDead,entry,personalities};
 });

@@ -1,6 +1,7 @@
 "use strict";
 
 const Session=require("../go-session.js");
+const People=require("../go-personalities.js");
 
 const PLAYOUTS=Number(process.env.NCGO_PLAYOUTS||2000);
 const DEAD_PLAYOUTS=Number(process.env.NCGO_DEAD_PLAYOUTS||600);
@@ -12,10 +13,21 @@ function handle(body){
   if(moves.length>400)throw new Error("Move list too long");
   if(moves.some(m=>!Number.isInteger(m)||m<-1||m>=Session.SIZE*Session.SIZE))throw new Error("Corrupt move list");
   const point=body.point===undefined||body.point===null?null:Number(body.point);
-  return Session.advance(moves,point,{playouts:PLAYOUTS,deadPlayouts:DEAD_PLAYOUTS,seed:(Date.now()^0x9e3779b9)>>>0});
+  // The opponent is whatever the client asks for, but only from the fitted set: an unknown id is the
+  // stock engine rather than an error, so a stale bookmark still plays a game.
+  const personality=body.personality&&People.describe(String(body.personality))?String(body.personality):null;
+  const styleWeight=Number.isFinite(Number(body.styleWeight))
+    ?Math.max(0,Math.min(2,Number(body.styleWeight))):1;
+  return Session.advance(moves,point,{playouts:PLAYOUTS,deadPlayouts:DEAD_PLAYOUTS,personality,styleWeight,
+    seed:(Date.now()^0x9e3779b9)>>>0});
 }
 
 module.exports=(req,res)=>{
+  // The roster is small, static and cacheable; the game itself never is.
+  if(req.method==="GET"){
+    res.statusCode=200;res.setHeader("Content-Type","application/json");
+    return res.end(JSON.stringify({personalities:Session.personalities()}));
+  }
   if(req.method!=="POST"){res.statusCode=405;res.setHeader("Content-Type","application/json");return res.end(JSON.stringify({error:"Use POST"}))}
   let body=req.body;
   if(typeof body==="string"){try{body=JSON.parse(body||"{}")}catch(e){body=null}}

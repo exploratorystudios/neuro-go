@@ -13,7 +13,8 @@
     /* Controls first, board second: the panel sits on the left so it stays in view while playing. */
     .layout{display:grid;grid-template-columns:300px minmax(0,690px);gap:28px;align-items:start}
     .board-wrap{background:#c98c4b;border-radius:18px;padding:clamp(12px,2.5vw,25px);box-shadow:0 18px 65px #0008,inset 0 1px #f6c27a55}
-    svg{display:block;width:100%;height:auto;background:#d39a58;border-radius:7px;touch-action:manipulation}.grid{stroke:#49311f;stroke-width:2}.star{fill:#49311f}
+    /* Scoped to the board: a bare `svg` rule paints every future icon on the page board-coloured. */
+    #board{display:block;width:100%;height:auto;background:#d39a58;border-radius:7px;touch-action:manipulation}.grid{stroke:#49311f;stroke-width:2}.star{fill:#49311f}
     .stone{stroke:#161616;stroke-width:2}.black{fill:#131416}.white{fill:#f5f0e6}
     .stone.dead{opacity:.4;stroke-dasharray:7 6}.dead-mark{stroke:#b3261e;stroke-width:6;stroke-linecap:round;pointer-events:none}
     .last{fill:none;stroke:#ef6d38;stroke-width:5}
@@ -27,6 +28,31 @@
     .actions{display:flex;gap:9px;margin:18px 0 14px}
     button{font:inherit;color:var(--ink);background:#292d35;border:1px solid #ffffff18;border-radius:9px;padding:10px 13px;cursor:pointer}button:hover{background:#363c47}
     button.primary{background:var(--accent);border-color:var(--accent);color:#24170e;font-weight:750}button:disabled{opacity:.45;cursor:default}
+    .opponent{margin:16px 0 4px}
+    /* The opponent picker is a listbox rather than a <select>, because each choice carries a line of
+       description under its name and a native option can only hold a string. */
+    .picker{position:relative}
+    .picker-trigger{display:flex;align-items:center;gap:10px;width:100%;text-align:left;background:#0e1014;
+      border:1px solid #ffffff18;border-radius:11px;padding:11px 12px;cursor:pointer}
+    .picker-trigger:hover:not(:disabled){background:#151920;border-color:#ffffff2e}
+    .picker-trigger[aria-expanded="true"]{border-color:var(--accent);background:#151920}
+    .picker-trigger:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+    .picker-name{flex:1;min-width:0;font-weight:650;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+    .picker-caret{flex:none;width:11px;height:7px;fill:none;stroke:var(--muted);stroke-width:2;stroke-linecap:round;
+      stroke-linejoin:round;transition:transform .16s ease}
+    .picker-trigger[aria-expanded="true"] .picker-caret{transform:rotate(180deg);stroke:var(--accent)}
+    /* A little wider than the 300px panel it hangs off, so a description sits on two lines not four. */
+    .picker-menu{position:absolute;z-index:20;top:calc(100% + 6px);left:0;width:330px;
+      max-width:calc(100vw - 44px);background:#12151a;
+      border:1px solid #ffffff1f;border-radius:13px;padding:5px;box-shadow:0 22px 55px #000a;
+      max-height:min(420px,60vh);overflow:auto;overscroll-behavior:contain}
+    .picker-option{display:grid;grid-template-columns:15px 1fr;gap:9px;align-items:start;padding:9px 10px;
+      border-radius:9px;cursor:pointer}
+    .picker-option:hover,.picker-option.active{background:#1e232c}
+    .picker-option .tick{grid-row:1/span 3;margin-top:2px;color:var(--accent);font-size:12px;line-height:1.2}
+    .picker-option b{font-weight:650;font-size:14px}
+    .picker-option small{color:var(--muted);font-size:11.5px;line-height:1.35;display:block;margin-top:1px}
+    .opponent-note{color:var(--muted);font-size:11.5px;margin-top:8px;min-height:30px}
     .toggle{display:flex;align-items:center;gap:9px;background:#0e1014;border:1px solid #ffffff10;border-radius:10px;padding:10px 11px;cursor:pointer;font-size:13px}
     .toggle input{accent-color:var(--accent);width:16px;height:16px;cursor:pointer}.toggle small{display:block;color:var(--muted);font-size:11.5px;margin-top:2px}
     .score{display:grid;grid-template-columns:1fr 1fr;gap:9px;margin:16px 0 4px}.score div{background:#0e1014;border-radius:10px;padding:11px}.score b{display:block;font-size:20px}.score span{color:var(--muted);font-size:12px}
@@ -40,12 +66,24 @@
 </head>
 <body>
   <main class="shell">
-    <header class="top"><div><div class="eyebrow">A small machine for a large game</div><h1>Neuro-Cognitive Go</h1><p class="subtitle">You play Black. The eye-aware PUCT engine plays White. Click an intersection to make your move.</p></div></header>
+    <header class="top"><div><div class="eyebrow">A small machine for a large game</div><h1>Neuro-Cognitive Go</h1><p class="subtitle">You play Black. The eye-aware PUCT engine plays White — as itself, or wearing one of five play-style personalities fitted from 6,672 human 9×9 games. Click an intersection to make your move.</p></div></header>
     <section class="layout">
       <aside class="panel">
         <div><div class="status" id="status">Loading…</div><div class="detail" id="detail"></div></div>
         <div class="last-action" id="last-action"></div>
         <div class="actions"><button class="primary" id="pass">Pass</button><button id="new">New game</button></div>
+        <div class="opponent">
+          <div class="section-title" style="margin-top:0">Opponent</div>
+          <div class="picker" id="picker">
+            <button type="button" class="picker-trigger" id="picker-button" aria-haspopup="listbox"
+              aria-expanded="false" aria-label="Choose opponent">
+              <span class="picker-name" id="picker-name">Stock engine</span>
+              <svg class="picker-caret" viewBox="0 0 11 7" aria-hidden="true"><path d="M1 1l4.5 4.5L10 1"/></svg>
+            </button>
+            <div class="picker-menu" id="picker-menu" role="listbox" aria-label="Opponent" hidden></div>
+          </div>
+          <div class="opponent-note" id="opponent-note">The engine's own judgement, with no style applied.</div>
+        </div>
         <label class="toggle"><input type="checkbox" id="dead-toggle" checked><span>Show dead stones<small id="dead-count">Reading the position each move</small></span></label>
         <div class="error" id="error"></div>
         <div class="score"><div><span id="black-label">Black</span><b id="black-score">0</b></div><div><span id="white-label">White + komi</span><b id="white-score">7.5</b></div></div>
@@ -59,8 +97,11 @@
   <script>
     const $=id=>document.querySelector(id);
     const board=$("#board"),statusEl=$("#status"),detailEl=$("#detail"),errorEl=$("#error"),lastActionEl=$("#last-action"),deadToggle=$("#dead-toggle");
-    const STORE="ncgo.moves",DEAD_PREF="ncgo.showDead";
-    let game=null,busy=false,moves=[];
+    const STORE="ncgo.moves",DEAD_PREF="ncgo.showDead",OPP_PREF="ncgo.opponent";
+    const pickerEl=$("#picker"),triggerEl=$("#picker-button"),menuEl=$("#picker-menu"),
+      pickerNameEl=$("#picker-name"),noteEl=$("#opponent-note");
+    let game=null,busy=false,moves=[],roster=[],opponent=localStorage.getItem(OPP_PREF)||"";
+    let pickerOpen=false,activeIndex=0;
     let showDead=localStorage.getItem(DEAD_PREF)!=="0";
     deadToggle.checked=showDead;
 
@@ -115,12 +156,61 @@
         :"<div class='detail'>No moves yet</div>";
     }
 
-    function draw(){drawBoard();drawStatus();drawScore();drawHistory();$("#pass").disabled=busy||game.gameOver||game.toPlay!=="black"}
+    const STOCK={id:"",name:"Stock engine",label:"The engine's own judgement, with no style applied.",
+      traits:null,stats:null};
+    const choices=()=>[STOCK,...roster];
+    const chosen=()=>choices().find(p=>p.id===opponent)||STOCK;
+
+    function drawMenu(){
+      menuEl.innerHTML=choices().map((spec,i)=>{
+        const selected=spec.id===opponent;
+        return `<div class="picker-option${i===activeIndex?" active":""}" role="option" id="picker-opt-${i}"
+          data-index="${i}" data-id="${esc(spec.id)}" aria-selected="${selected}">
+          <span class="tick">${selected?"●":""}</span>
+          <span><b>${esc(spec.name)}</b><small>${esc(spec.label)}</small></span></div>`;
+      }).join("");
+      const active=menuEl.querySelector(".picker-option.active");
+      if(active)active.scrollIntoView({block:"nearest"});
+      menuEl.setAttribute("aria-activedescendant",`picker-opt-${activeIndex}`);
+    }
+
+    function openPicker(){
+      if(busy||pickerOpen)return;
+      pickerOpen=true;
+      activeIndex=Math.max(0,choices().findIndex(p=>p.id===opponent));
+      menuEl.hidden=false;triggerEl.setAttribute("aria-expanded","true");
+      drawMenu();
+    }
+    function closePicker({focus=false}={}){
+      if(!pickerOpen)return;
+      pickerOpen=false;menuEl.hidden=true;triggerEl.setAttribute("aria-expanded","false");
+      if(focus)triggerEl.focus();
+    }
+    function choose(id){
+      closePicker({focus:true});
+      if(id===opponent)return;
+      // Switching opponents starts a fresh game. Carrying a half-played board across a change of style
+      // would show a personality the first half of the game was never played by.
+      opponent=id;localStorage.setItem(OPP_PREF,opponent);
+      moves=[];request({moves:[]});
+    }
+
+    function drawOpponent(){
+      const spec=chosen();
+      pickerNameEl.textContent=spec.name;
+      triggerEl.disabled=busy;
+      if(busy)closePicker();
+      noteEl.textContent=spec.label;
+      if(pickerOpen)drawMenu();
+    }
+
+    function draw(){drawBoard();drawStatus();drawScore();drawHistory();drawOpponent();$("#pass").disabled=busy||game.gameOver||game.toPlay!=="black"}
 
     async function request(body){
       errorEl.textContent="";busy=true;if(game)draw();
       try{
-        const r=await fetch("/api/game",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)});
+        const r=await fetch("/api/game",{method:"POST",headers:{"Content-Type":"application/json"},
+          body:JSON.stringify({...body,personality:opponent||null})});
         const x=await r.json();
         if(!r.ok)throw new Error(x.error||"Request failed");
         game=x;moves=x.moves;localStorage.setItem(STORE,JSON.stringify(moves));
@@ -138,7 +228,46 @@
       showDead=deadToggle.checked;localStorage.setItem(DEAD_PREF,showDead?"1":"0");if(game)draw();
     });
 
+    triggerEl.addEventListener("click",()=>{pickerOpen?closePicker():openPicker()});
+    menuEl.addEventListener("click",e=>{
+      const option=e.target.closest("[data-id]");
+      if(option)choose(option.dataset.id);
+    });
+    menuEl.addEventListener("mousemove",e=>{
+      const option=e.target.closest("[data-index]");
+      if(!option)return;
+      const index=Number(option.dataset.index);
+      if(index!==activeIndex){activeIndex=index;drawMenu()}
+    });
+    // Keyboard: the same contract a native select offers, since this replaces one.
+    pickerEl.addEventListener("keydown",e=>{
+      const list=choices();
+      if(!pickerOpen){
+        if(e.key==="ArrowDown"||e.key==="ArrowUp"||e.key==="Enter"||e.key===" "){e.preventDefault();openPicker()}
+        return;
+      }
+      if(e.key==="Escape"){e.preventDefault();closePicker({focus:true})}
+      else if(e.key==="ArrowDown"){e.preventDefault();activeIndex=(activeIndex+1)%list.length;drawMenu()}
+      else if(e.key==="ArrowUp"){e.preventDefault();activeIndex=(activeIndex-1+list.length)%list.length;drawMenu()}
+      else if(e.key==="Home"){e.preventDefault();activeIndex=0;drawMenu()}
+      else if(e.key==="End"){e.preventDefault();activeIndex=list.length-1;drawMenu()}
+      else if(e.key==="Enter"||e.key===" "){e.preventDefault();choose(list[activeIndex].id)}
+      else if(e.key==="Tab")closePicker();
+    });
+    document.addEventListener("click",e=>{if(!pickerEl.contains(e.target))closePicker()});
+
+    async function loadRoster(){
+      try{
+        const r=await fetch("/api/game");
+        const x=await r.json();
+        roster=Array.isArray(x.personalities)?x.personalities:[];
+      }catch(e){roster=[]}
+      if(!roster.some(p=>p.id===opponent))opponent="";
+      drawOpponent();
+    }
+
     try{const saved=JSON.parse(localStorage.getItem(STORE)||"[]");if(Array.isArray(saved))moves=saved}catch(e){moves=[]}
+    loadRoster();
     request({moves});
   </script>
 </body>

@@ -9,6 +9,7 @@
 const C=require("./go-core.js");
 const G=require("./go-cognitive.js");
 const PL=require("./go-players.js");
+const People=require("./go-personalities.js");
 
 const argv=process.argv.slice(2);
 const arg=(name,fallback)=>{const i=argv.indexOf(`--${name}`);return i<0?fallback:argv[i+1]};
@@ -19,8 +20,16 @@ const options={
   eyeMode:arg("eyes","root"),
   eyeWeight:Number(arg("eye-weight",1.1)),
   cPuct:Number(arg("cpuct",1.2)),
-  raveBias:Number(arg("rave",.015))
+  raveBias:Number(arg("rave",.015)),
+  personality:arg("personality",null),
+  styleWeight:Number(arg("style-weight",1)),
+  bookWeight:Number(arg("book-weight",1)),
+  playoutWeight:Number(arg("playout-weight",1))
 };
+if(options.personality&&!People.describe(options.personality)){
+  process.stderr.write(`unknown personality "${options.personality}"; known: ${People.ids().join(", ")||"(none — run npm run go:style)"}\n`);
+  process.exit(1);
+}
 
 let size=9,komi=7.5,state=null,mind=null,random=C.rng((Date.now()^0x9e3779b9)>>>0);
 const stack=[];
@@ -39,10 +48,13 @@ function play(point){
   return true;
 }
 
+function person(){
+  return People.resolve(options.personality,{styleWeight:options.styleWeight,
+    bookWeight:options.bookWeight,playoutWeight:options.playoutWeight});
+}
 function genmove(color){
   state={...state,toPlay:color};
-  if(!mind)mind=G.createMind(color,(Math.random()*1e9)|0);
-  if(mind.color!==color)mind=G.createMind(color,(Math.random()*1e9)|0);
+  if(!mind||mind.color!==color||mind.personality!==person())mind=G.createMind(color,(Math.random()*1e9)|0,person());
   const decision=PL.POLICIES[options.policy](state,random,{...options,mind,playouts:options.playouts});
   if(decision.mind)mind=decision.mind;
   let point=decision.point;
@@ -54,7 +66,7 @@ function genmove(color){
 const COMMANDS={
   protocol_version:()=>"2",
   name:()=>"Neuro-Cognitive Go",
-  version:()=>"0.3 (cognitive-PUCT + eye layer)",
+  version:()=>`0.4 (cognitive-PUCT + eye layer${options.personality?` + ${options.personality}`:""})`,
   list_commands:()=>Object.keys(COMMANDS).join("\n"),
   known_command:a=>String(Object.prototype.hasOwnProperty.call(COMMANDS,a[0])),
   boardsize:a=>{const n=Number(a[0]);if(!Number.isInteger(n)||n<2||n>19)throw new Error("unacceptable size");size=n;reset();return""},
@@ -76,6 +88,22 @@ const COMMANDS={
     if(s.margin===0)return"0";
     return(s.margin>0?"B+":"W+")+Math.abs(s.margin).toFixed(1);
   },
+  // GTP extensions. Anything a GUI does not know about it simply never sends, so these are free.
+  nc_personality:a=>{
+    if(!a.length)return options.personality||"none";
+    const id=a[0].toLowerCase();
+    if(id==="none"||id==="off"){options.personality=null;mind=null;return""}
+    if(!People.describe(id))throw new Error(`unknown personality; known: ${People.ids().join(" ")}`);
+    options.personality=id;mind=null;
+    return"";
+  },
+  nc_personality_list:()=>People.list().map(p=>`${p.id} ${p.name} — ${p.label}`).join("\n")||"none",
+  nc_style_weight:a=>{
+    if(!a.length)return String(options.styleWeight);
+    const value=Number(a[0]);
+    if(!Number.isFinite(value)||value<0||value>4)throw new Error("style weight must be between 0 and 4");
+    options.styleWeight=value;mind=null;return"";
+  },
   quit:()=>{setTimeout(()=>process.exit(0),0);return""}
 };
 
@@ -92,7 +120,8 @@ process.stdin.on("data",chunk=>{
     let id="";
     if(/^\d+$/.test(tokens[0]))id=tokens.shift();
     if(!tokens.length)continue;
-    const name=tokens.shift().toLowerCase();
+    // GTP command names are conventionally hyphenated; the table is keyed by identifier, so accept both.
+    const name=tokens.shift().toLowerCase().replace(/-/g,"_");
     const handler=COMMANDS[name];
     if(!handler){process.stdout.write(`?${id} unknown command\n\n`);continue}
     try{process.stdout.write(`=${id} ${handler(tokens)}\n\n`.replace(/ \n\n$/,"\n\n"))}

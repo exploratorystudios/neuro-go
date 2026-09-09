@@ -4,10 +4,11 @@
   const cognitive=typeof module!=="undefined"&&module.exports?require("./go-cognitive.js"):root.NcGoCognitive;
   const mcts=typeof module!=="undefined"&&module.exports?require("./go-mcts.js"):root.NcGoMCTS;
   const regions=typeof module!=="undefined"&&module.exports?require("./go-regions.js"):root.NcGoRegions;
-  const api=factory(core,play,cognitive,mcts,regions);
+  const people=typeof module!=="undefined"&&module.exports?require("./go-personalities.js"):root.NcGoPersonalities;
+  const api=factory(core,play,cognitive,mcts,regions,people);
   if(typeof module!=="undefined"&&module.exports)module.exports=api;
   root.NcGoPlayers=api;
-})(typeof globalThis!=="undefined"?globalThis:this,function(C,P,G,M,R){
+})(typeof globalThis!=="undefined"?globalThis:this,function(C,P,G,M,R,People){
   "use strict";
 
   function randomPolicy(state,random){
@@ -35,12 +36,15 @@
   }
 
   // Cognitive-PUCT carries a mind between moves, so plan support accumulates across the match.
-  function puctPolicy(state,random,{playouts=2000,mind=null,seed=1,cPuct=1.2,expandThreshold=6,raveBias=.015,fpuReduction=.2,survey=null,regionStrength=.8,fastPlayouts=true,eyeMode="root",eyeWeight=1.1}={}){
-    const carried=mind||G.createMind(state.toPlay,seed);
+  function puctPolicy(state,random,{playouts=2000,mind=null,seed=1,cPuct=1.2,expandThreshold=6,raveBias=.015,fpuReduction=.2,survey=null,regionStrength=.8,fastPlayouts=true,eyeMode="root",eyeWeight=1.1,
+  personality=null,styleWeight=1,bookWeight=1,playoutWeight=1}={}){
+    const person=People.resolve(personality,{styleWeight,bookWeight,playoutWeight});
+    const carried=mind||G.createMind(state.toPlay,seed,person);
     const decision=M.decide(carried,state,{simulations:playouts,cPuct,expandThreshold,raveBias,fpuReduction,survey,regionStrength,random,fastPlayouts,eyeMode,eyeWeight});
     return{point:decision.point,mind:decision.mind,
       stats:{playouts:decision.stats.playouts,expansions:decision.stats.expansions,
-        plan:decision.plan,score:decision.score,maxDepth:decision.stats.maxDepth}};
+        plan:decision.plan,score:decision.score,maxDepth:decision.stats.maxDepth,
+        personality:person?person.id:null}};
   }
 
   // The regional matrix: local analyzers report upward, and their temperatures become the budget the

@@ -4,10 +4,11 @@
   const playout=typeof module!=="undefined"&&module.exports?require("./go-playout.js"):root.NcGoPlayout;
   const eyes=typeof module!=="undefined"&&module.exports?require("./go-eyes.js"):root.NcGoEyes;
   const fastPlayout=typeof module!=="undefined"&&module.exports?require("./go-fastplayout.js"):root.NcGoFastPlayout;
-  const api=factory(core,cognitive,playout,fastPlayout,eyes);
+  const style=typeof module!=="undefined"&&module.exports?require("./go-style.js"):root.NcGoStyle;
+  const api=factory(core,cognitive,playout,fastPlayout,eyes,style);
   if(typeof module!=="undefined"&&module.exports)module.exports=api;
   root.NcGoMCTS=api;
-})(typeof globalThis!=="undefined"?globalThis:this,function(C,G,P,FP,E){
+})(typeof globalThis!=="undefined"?globalThis:this,function(C,G,P,FP,E,St){
   "use strict";
 
   const makeNode=state=>({state,visits:0,valueSum:0,edges:null});
@@ -22,7 +23,7 @@
     let total=0;
     for(let i=0;i<options.leafPlayouts;i++){
       stats.playouts++;
-      total+=roll(state,random,{amaf}).winner===state.toPlay?1:-1;
+      total+=roll(state,random,{amaf,style:options.style}).winner===state.toPlay?1:-1;
     }
     return total/options.leafPlayouts;
   }
@@ -153,7 +154,15 @@
   eyeMode="root",eyeWeight=1.1}={}){
     const mind=G.updatePlans(sourceMind,state);
     const draw=random||C.rng((mind.seed+state.moveNumber*7919)>>>0);
-    const options={cPuct,maxDepth,expandThreshold,leafPlayouts,temperature,raveBias,fpuReduction,eyeMode,eyeWeight,
+    // Only the fast playout can carry a style: the reference playout is the correctness oracle the
+    // fast one is checked against, and biasing it would remove the thing it is there to be.
+    const personality=mind.personality||null;
+    // styleWeight 0 must leave the rollout on exactly the stock path, not on a styled path whose
+    // weights all happen to be 1: a uniform weighted draw and a shuffle-and-take-first draw consume the
+    // random stream differently, and "the same engine" has to mean the same game.
+    const style=personality&&fastPlayouts&&personality.styleWeight>0&&personality.playoutWeight>0&&personality.patterns.size
+      ?{table:St.playoutTable(personality,personality.playoutWeight*personality.styleWeight)}:null;
+    const options={cPuct,maxDepth,expandThreshold,leafPlayouts,temperature,raveBias,fpuReduction,eyeMode,eyeWeight,style,
       playoutImpl:fastPlayouts?FP.playout:P.playout};
     const amaf=new Int8Array(state.size*state.size);
     const root=makeNode(state);

@@ -112,7 +112,8 @@
     function drawBoard(){
       const dead=showDead?new Set(game.dead):new Set(),lines=[];
       for(let i=0;i<9;i++){const p=50+i*100;lines.push(`<line class="grid" x1="50" y1="${p}" x2="850" y2="${p}"/><line class="grid" x1="${p}" y1="50" x2="${p}" y2="850"/>`)}
-      for(const p of [20,24,60,64]){const q=xy(p);lines.push(`<circle class="star" cx="${q.x}" cy="${q.y}" r="6"/>`)}
+      // The 3-3 point in each corner: C7, G7, C3, G3 as p = row*9 + col.
+      for(const p of [20,24,56,60]){const q=xy(p);lines.push(`<circle class="star" cx="${q.x}" cy="${q.y}" r="6"/>`)}
       for(let p=0;p<81;p++){
         const q=xy(p),v=game.board[p],isDead=v&&dead.has(p);
         const stone=v?`<circle class="stone ${v===1?"black":"white"}${isDead?" dead":""}" cx="${q.x}" cy="${q.y}" r="37"/>`:"";
